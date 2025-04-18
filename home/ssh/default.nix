@@ -1,6 +1,6 @@
 {
   pkgs-unstable,
-  lib,
+  secrets,
   ...
 }:
 {
@@ -10,9 +10,9 @@
   };
   programs.ssh.matchBlocks = {
     vps = {
-      hostname = builtins.readFile ../../secrets/ssh/vps-hostname;
-      port = lib.toInt (builtins.readFile ../../secrets/ssh/vps-port);
-      user = builtins.readFile ../../secrets/ssh/vps-user;
+      user = secrets.ssh.vps.user;
+      hostname = secrets.ssh.vps.hostname;
+      port = secrets.ssh.vps.port;
     };
   };
 }

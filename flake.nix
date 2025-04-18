@@ -23,6 +23,7 @@
       lib = nixpkgs.lib;
       pkgs = nixpkgs.legacyPackages.${system};
       pkgs-unstable = nixpkgs-unstable.legacyPackages.${system};
+      secrets = (import ./secrets);
     in
     {
       nixosConfigurations = {
@@ -34,7 +35,7 @@
       homeConfigurations = {
         awiteb = home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
-          extraSpecialArgs = { inherit inputs pkgs-unstable; };
+          extraSpecialArgs = { inherit inputs pkgs-unstable secrets; };
           modules = [
             ./home/home.nix
           ];
