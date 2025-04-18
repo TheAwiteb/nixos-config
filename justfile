@@ -9,7 +9,7 @@ _default:
 
 # Switch to a new home-manager generation
 home:
-    home-manager switch --flake .
+    home-manager switch --flake '.?submodules=1'
 
 # Switch to a new nixos generation
 nixos:
