@@ -1,0 +1,38 @@
+{
+  pkgs,
+  ...
+}:
+{
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
+
+  users.users.awiteb = {
+    shell = pkgs.zsh;
+    isNormalUser = true;
+    description = "awiteb";
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+    ];
+    packages = [ ];
+  };
+
+  programs.gnupg = {
+    agent = {
+      enable = true;
+      pinentryPackage = pkgs.pinentry-curses;
+      # enableSSHSupport = true;
+    };
+  };
+  services.pcscd.enable = true;
+
+  programs.zsh.enable = true;
+  services.flatpak.enable = true;
+  xdg.portal = {
+    wlr.enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    enable = true;
+  };
+}

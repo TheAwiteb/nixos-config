@@ -1,0 +1,10 @@
+#! /usr/bin/env sh
+
+# git hook to add `Signed-off-by` footer
+
+NAME=$(git config user.name)
+EMAIL=$(git config user.email)
+
+git interpret-trailers --if-exists doNothing --trailer \
+    "Signed-off-by: $NAME <$EMAIL>" \
+    --in-place "$1"
