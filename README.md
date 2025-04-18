@@ -28,7 +28,7 @@ ssh and gpg keys). I use Flakes to configure the system for me.
 ```
 
 - `flake.nix` and `flake.lock`: Flake files, to ro reproduce the same system with the same versions.
-- `home.nix`: Home manager configurations, running in `flake.nix`. It contains by programs
+- `home.nix`: Home manager configurations, running in `flake.nix`. It contains my programs
               with their configurations. Not all programs are configured.
 - `rust-crates`: A module running in `home.nix` to add rust packages to the list of my packages.
                 Read the top comment in `rust-crates/default.nix` to know how it works.
