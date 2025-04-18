@@ -34,6 +34,22 @@ ssh and gpg keys). I use Flakes to configure the system for me.
                 Read the top comment in `rust-crates/default.nix` to know how it works.
 - `host/host.nix`: My host configurations, same as `/etc/nixos/configuration.nix` without flakes.
 
+## `secrets` git submodule
+
+The `secrets` folder is a git submodule pointing to a private git repository.
+It contains `default.nix` which is contains a set of your secrets,
+you can use thoes secrets in your home-manager configuration like this
+`secrets.ssh.vps.hostname`.
+
+### Example `secrets/default.nix`
+
+```nix
+{
+    ssh.vps.hostname = "127.0.0.1";
+}
+```
+
+Or create  `secrets/ssh.nix` and import it in `ssh`, like this `ssh = (import ./ssh.nix);`.
 
 ## License
 
