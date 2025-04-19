@@ -45,6 +45,7 @@
         monero-gui
         nixd
         nixfmt-rfc-style
+        openssl
         ripgrep
         rustup
         simple-completion-language-server
