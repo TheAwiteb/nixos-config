@@ -25,28 +25,28 @@
   };
 
   programs.zsh.shellAliases = {
-    ll = "ls -l";
     ".." = "z ..";
     ".j" = "just --justfile ~/.user.justfile --working-directory .";
-    ze = "zellij";
-    e = "eza";
-    j = "just";
-    tra = "trash put";
-    fdate = "date +'%Y/%m/%d %r'";
-    cat = "bat --style header --style snip --style changes --style header";
+    "7zenc" = "7z a -t7z -m0=lzma2 -mx=9 -mfb=64 -md=32m -ms=on -mhe=on -p";
     c = "cargo";
-    cr = "c r -q";
+    cat = "bat --style header --style snip --style changes --style header";
+    ccfull = "c +nightly fmt --check && c +nightly clippy && c +nightly c";
     cf = "c fmt";
     cfull = "cf --check && c clippy && c c";
-    ccfull = "c +nightly fmt --check && c +nightly clippy && c +nightly c";
-    git-head = "git log HEAD^..HEAD --pretty=%H";
+    cr = "c r -q";
+    e = "eza";
+    fdate = "date +'%Y/%m/%d %r'";
     g = "TZ=UTC git";
     gc = "g commit -m";
-    gr = "g rebase -i";
     gcr = "g commit --amend '-S'";
-    grc = "g rebase --continue";
+    git-head = "git log HEAD^..HEAD --pretty=%H";
     gms = "g merge --squash";
+    gr = "g rebase -i";
+    grc = "g rebase --continue";
+    j = "just";
+    ll = "ls -l";
     md = "mkdir";
-    "7zenc" = "7z a -t7z -m0=lzma2 -mx=9 -mfb=64 -md=32m -ms=on -mhe=on -p";
+    tra = "trash put";
+    ze = "zellij";
   };
 }
