@@ -15,6 +15,7 @@
     extraGroups = [
       "networkmanager"
       "wheel"
+      "docker"
     ];
     packages = [ ];
   };
@@ -35,4 +36,6 @@
     extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
     enable = true;
   };
+  virtualisation.docker.enable = true;
+  virtualisation.docker.autoPrune.enable = true;
 }
