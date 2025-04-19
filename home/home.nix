@@ -34,6 +34,7 @@
         fastfetch
         gnome-tweaks
         htop
+        jq
         libossp_uuid
         wget
         xclip
