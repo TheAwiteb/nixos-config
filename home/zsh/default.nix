@@ -15,7 +15,6 @@
     enable = true;
     plugins = [
       "sudo"
-      "z"
       "rust"
     ];
   };

@@ -14,6 +14,7 @@
     ./helix
     ./ssh
     ./zellij
+    ./zoxide
     ./zsh
   ];
 
