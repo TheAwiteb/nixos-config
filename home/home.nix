@@ -48,6 +48,7 @@
         openssl
         ripgrep
         rustup
+        sd
         simple-completion-language-server
         taplo
         telegram-desktop
