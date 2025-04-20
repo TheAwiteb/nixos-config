@@ -18,8 +18,6 @@
     ./zsh
   ];
 
-  fonts.fontconfig.enable = true;
-
   home = {
     username = "awiteb";
     homeDirectory = "/home/awiteb";
@@ -56,15 +54,7 @@
         telegram-desktop
         tor-browser
         trashy
-      ])
-      ++ [
-        (pkgs.nerdfonts.override {
-          fonts = [
-            "FiraCode"
-            "ComicShannsMono"
-          ];
-        })
-      ];
+      ]);
   };
 
   programs.home-manager.enable = true;

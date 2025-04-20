@@ -8,6 +8,7 @@
     ./hardware.nix
     ./network.nix
     ./services
+    ./fonts
   ];
 
   # Automatic Garbage Collection
