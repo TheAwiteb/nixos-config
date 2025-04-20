@@ -14,7 +14,6 @@
   programs.zsh.oh-my-zsh = {
     enable = true;
     plugins = [
-      "sudo"
       "rust"
     ];
   };
