@@ -36,6 +36,7 @@
         htop
         jq
         libossp_uuid
+        libreoffice-qt6-fresh
         wget
         xclip
       ])
