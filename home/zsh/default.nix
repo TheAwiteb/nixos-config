@@ -17,6 +17,8 @@
 
   programs.zsh.oh-my-zsh = {
     enable = true;
+    custom = builtins.toString ./custom_omz_dir;
+    theme = "oxide";
     plugins = [
       "rust"
     ];
