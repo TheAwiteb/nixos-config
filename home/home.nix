@@ -37,6 +37,7 @@
         libreoffice-qt6-fresh
         wget
         xclip
+        zola
       ])
       ++ (with pkgs-unstable; [
         brave
