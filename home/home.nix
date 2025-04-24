@@ -53,7 +53,6 @@
         taplo
         telegram-desktop
         tor-browser
-        trashy
       ]);
   };
 
