@@ -26,7 +26,7 @@
     ];
 
     packages =
-      ((import ./rust-crates) { inherit (pkgs) rustPlatform fetchCrate; })
+      ((import ./rust-crates) { inherit pkgs; })
       ++ (with pkgs; [
         curl
         fastfetch

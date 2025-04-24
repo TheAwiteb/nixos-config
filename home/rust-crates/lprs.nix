@@ -1,8 +1,10 @@
 {
-  rustPlatform,
-  fetchCrate,
+  pkgs,
   ...
 }:
+let
+  inherit (pkgs) rustPlatform fetchCrate;
+in
 rustPlatform.buildRustPackage rec {
   pname = "lprs";
   version = "2.0.0";

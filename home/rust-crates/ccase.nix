@@ -1,8 +1,10 @@
 {
-  rustPlatform,
-  fetchCrate,
+  pkgs,
   ...
 }:
+let
+  inherit (pkgs) rustPlatform fetchCrate;
+in
 rustPlatform.buildRustPackage rec {
   pname = "ccase";
   version = "0.4.1";
