@@ -54,6 +54,7 @@
         taplo
         telegram-desktop
         tor-browser
+        vlc
       ]);
   };
 
