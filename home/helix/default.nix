@@ -63,7 +63,7 @@
     editor.file-picker = {
       hidden = false;
       ignore = false;
-      git-ignore = false;
+      git-ignore = true;
     };
   };
 }
