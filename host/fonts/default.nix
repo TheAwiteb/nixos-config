@@ -11,11 +11,7 @@
       # Arabic/Persian Font
       vazir-fonts
       # Nerd fonts
-      (nerdfonts.override {
-        fonts = [
-          "UbuntuMono"
-        ];
-      })
+      nerd-fonts.ubuntu-mono
     ];
 
     fontconfig = {
