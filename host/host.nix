@@ -18,11 +18,6 @@
     options = "--delete-older-than 7d";
   };
 
-  # Auto system update
-  system.autoUpgrade = {
-    enable = true;
-  };
-
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.initrd.luks.devices."luks-2095201b-e0e7-4de1-b5e2-87e5cffbb772".device =
@@ -42,5 +37,5 @@
     LC_TIME = "en_US.UTF-8";
   };
 
-  system.stateVersion = "24.11";
+  system.stateVersion = "25.05";
 }
