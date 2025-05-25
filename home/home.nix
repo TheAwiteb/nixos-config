@@ -52,6 +52,7 @@
         rustup
         sd
         simple-completion-language-server
+        simplex-chat-desktop
         taplo
         telegram-desktop
         tor-browser
