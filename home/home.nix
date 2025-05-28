@@ -48,6 +48,7 @@
         nixd
         nixfmt-rfc-style
         openssl
+        prismlauncher
         ripgrep
         rustup
         sd
