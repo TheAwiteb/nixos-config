@@ -11,6 +11,8 @@
     ./fonts
   ];
 
+  nixpkgs.config.allowUnfree = true;
+
   # Automatic Garbage Collection
   nix.gc = {
     automatic = true;
