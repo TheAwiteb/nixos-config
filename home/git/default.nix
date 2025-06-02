@@ -25,6 +25,12 @@
   programs.git.extraConfig = {
     pull.rebase = true;
     merge.conflictstyle = "diff3";
+    format = {
+      useAutoBase = true;
+      coverLetter = true;
+      coverFromDescription = "auto";
+      outputDirectory = "patches";
+    };
   };
 
   programs.git.delta = {
