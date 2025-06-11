@@ -1,3 +1,9 @@
+# This forked from https://github.com/dikiaap/dotfiles/blob/367877bed1cd871afdaea755a6fa9962b34eaad1/.oh-my-zsh/themes/oxide.zsh-theme
+#
+# Changes:
+# - A state for the nix-shell - by Awiteb
+#
+
 # Oxide theme for Zsh
 #
 # Author: Diki Ananta <diki1aap@gmail.com>
@@ -47,6 +53,7 @@ FMT_UNSTAGED="%{$oxide_reset_color%} %{$oxide_orange%}●"
 FMT_STAGED="%{$oxide_reset_color%} %{$oxide_cwd_color%}✚"
 FMT_ACTION="(%{$oxide_cwd_color%}%a%{$oxide_reset_color%})"
 FMT_VCS_STATUS="on %{$oxide_turquoise%} %b%u%c%{$oxide_reset_color%}"
+IN_NIX=$([ "$SHLVL" -gt 2 ] && echo " in$oxide_turquoise nix-shell$oxide_reset_color " || echo " ")
 
 zstyle ':vcs_info:*' enable git svn
 zstyle ':vcs_info:*' check-for-changes true
@@ -69,4 +76,4 @@ zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
 add-zsh-hook precmd vcs_info
 
 # Oxide prompt style.
-PROMPT=$'\n%{$oxide_cwd_color%}%~%{$oxide_reset_color%} ${vcs_info_msg_0_}\n%(?.%{%F{white}%}.%{$oxide_red%})%(!.#.λ)%{$oxide_reset_color%} '
+PROMPT=$'\n%{$oxide_cwd_color%}%~%{$oxide_reset_color%}%{$IN_NIX%}${vcs_info_msg_0_}\n%(?.%{%F{white}%}.%{$oxide_red%})%(!.#.λ)%{$oxide_reset_color%} '
