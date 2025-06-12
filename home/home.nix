@@ -52,6 +52,7 @@
         ripgrep
         rustup
         sd
+        signal-desktop
         simple-completion-language-server
         taplo
         telegram-desktop
