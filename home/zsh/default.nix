@@ -19,9 +19,7 @@
     enable = true;
     custom = builtins.toString ./custom_omz_dir;
     theme = "oxide";
-    plugins = [
-      "rust"
-    ];
+    plugins = [ ];
   };
 
   programs.zsh.sessionVariables = {

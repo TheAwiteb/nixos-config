@@ -50,7 +50,6 @@
         openssl
         prismlauncher
         ripgrep
-        rustup
         sd
         signal-desktop
         simple-completion-language-server
