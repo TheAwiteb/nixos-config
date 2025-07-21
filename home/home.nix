@@ -57,6 +57,7 @@
         telegram-desktop
         tor-browser
         vlc
+        wasabiwallet
       ]);
   };
 
