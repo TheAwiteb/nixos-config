@@ -58,6 +58,7 @@
         tor-browser
         vlc
         wasabiwallet
+        zed-editor
       ]);
   };
 
