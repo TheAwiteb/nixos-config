@@ -1,0 +1,6 @@
+{ ... }:
+{
+  imports = [
+    ./doom-updated.nix
+  ];
+}

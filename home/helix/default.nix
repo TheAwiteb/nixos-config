@@ -8,6 +8,7 @@
     ./keys-normal.nix
     ./keys-select.nix
     ./languages.nix
+    ./themes
   ];
 
   programs.helix = {
@@ -15,7 +16,7 @@
     package = pkgs-unstable.helix;
   };
   programs.helix.settings = {
-    theme = "doom_acario_dark";
+    theme = "doom-updated"; # Custom theme in ./themes/doom-updated.nix
 
     editor = {
       end-of-line-diagnostics = "hint";
