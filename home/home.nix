@@ -2,6 +2,7 @@
 {
   pkgs,
   pkgs-unstable,
+  inputs,
   ...
 }:
 {
@@ -27,6 +28,9 @@
 
     packages =
       ((import ./rust-crates) { inherit pkgs; })
+      ++ (with inputs; [
+        n34.packages."${pkgs.system}".default
+      ])
       ++ (with pkgs; [
         curl
         fastfetch
