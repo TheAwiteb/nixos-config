@@ -25,6 +25,7 @@
   programs.git.extraConfig = {
     pull.rebase = true;
     merge.conflictstyle = "diff3";
+    init.defaultBranch = "master"; # In case they changed it to anything else
     format = {
       useAutoBase = true;
       coverLetter = true;
