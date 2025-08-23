@@ -8,6 +8,10 @@ let
   zjstatus = "${homeDir}/nixos-config/home/zellij/plugins/zjstatus.wasm";
 in
 {
+  imports = [
+    ./keybinds.nix
+  ];
+
   home.file.".config/zellij/layouts/default.kdl" = {
     enable = true;
     source = ./layout.kdl;
@@ -44,12 +48,6 @@ in
     pane_frames = false;
     mouse_mode = false;
     show_startup_tips = false;
-
-    keybinds.pane = {
-      "bind \"p\"" = {
-        SwitchFocus = { };
-        SwitchToMode = "Normal";
-      };
-    };
+    session_serialization = false;
   };
 }
