@@ -23,7 +23,7 @@
       };
 
       resize = {
-        "bind \"Alt n\"" = {
+        "bind \"Alt n\" \"Esc\"" = {
           SwitchToMode = "Normal";
         };
         "bind \"h\" \"Left\"" = {
@@ -59,7 +59,7 @@
       };
 
       pane = {
-        "bind \"Alt p\"" = {
+        "bind \"Alt p\" \"Esc\"" = {
           SwitchToMode = "Normal";
         };
         "bind \"h\" \"Left\"" = {
@@ -109,7 +109,7 @@
       };
 
       move = {
-        "bind \"Alt h\"" = {
+        "bind \"Alt h\" \"Esc\"" = {
           SwitchToMode = "Normal";
         };
         "bind \"n\" \"Tab\"" = {
@@ -133,7 +133,7 @@
       };
 
       tab = {
-        "bind \"Alt t\"" = {
+        "bind \"Alt t\" \"Esc\"" = {
           SwitchToMode = "Normal";
         };
         "bind \"h\" \"Left\"" = {
@@ -153,7 +153,7 @@
       };
 
       scroll = {
-        "bind \"Alt s\"" = {
+        "bind \"Alt s\" \"Esc\"" = {
           SwitchToMode = "Normal";
         };
         "bind \"e\"" = {
