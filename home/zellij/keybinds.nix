@@ -102,6 +102,10 @@
           ToggleFloatingPanes = { };
           SwitchToMode = "Normal";
         };
+        "bind \"e\"" = {
+          TogglePaneEmbedOrFloating = { };
+          SwitchToMode = "Normal";
+        };
         "bind \"i\"" = {
           TogglePanePinned = { };
           SwitchToMode = "Normal";
