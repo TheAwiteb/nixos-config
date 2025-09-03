@@ -51,12 +51,14 @@
         monero-gui
         nixd
         nixfmt-rfc-style
+        nushell
         openssl
         prismlauncher
         ripgrep
         sd
         signal-desktop
         simple-completion-language-server
+        skim
         taplo
         telegram-desktop
         tor-browser
