@@ -1,23 +1,36 @@
 {
+  config,
   ...
 }:
+let
+  zshDir = "${config.home.homeDirectory}/.omz";
+  zshCustom = "${zshDir}/custom";
+  zshThemes = "${zshCustom}/themes";
+in
 {
   imports = [
     ./aliases.nix
   ];
+
+  home.file."${zshThemes}/oxide.zsh-theme" = {
+    enable = true;
+    source = ./oxide.zsh-theme;
+    force = true;
+  };
 
   programs.zsh = {
     enable = true;
     enableCompletion = true;
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
-    history.size = 1000;
+    history.size = 20000;
     history.append = true;
+    history.ignoreAllDups = true;
   };
 
   programs.zsh.oh-my-zsh = {
     enable = true;
-    custom = builtins.toString ./custom_omz_dir;
+    custom = zshCustom;
     theme = "oxide";
     plugins = [ ];
   };
@@ -25,5 +38,6 @@
   programs.zsh.sessionVariables = {
     EDITOR = "hx";
     ZELLIJ_AUTO_EXIT = "true";
+    ZSH = zshDir;
   };
 }
