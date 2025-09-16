@@ -16,14 +16,12 @@
     fdate = "date +'%Y/%m/%d %r'";
     g = "TZ=UTC git";
     gc = "g commit -m";
-    gcr = "g commit --amend '-S'";
     git-head = "git log HEAD^..HEAD --pretty=%H";
-    gms = "g merge --squash";
     gr = "g rebase -i";
-    grc = "g rebase --continue";
     j = "just";
     ll = "ls -l";
     md = "mkdir";
+    open = "xdg-open";
     tra = "trash put";
     ze = "zellij";
   };
