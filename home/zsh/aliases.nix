@@ -15,6 +15,7 @@
     e = "eza";
     fdate = "date +'%Y/%m/%d %r'";
     g = "TZ=UTC git";
+    g-am-drop = "g am --empty=drop";
     gc = "g commit -m";
     git-head = "git log HEAD^..HEAD --pretty=%H";
     gr = "g rebase -i";
