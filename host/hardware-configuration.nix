@@ -44,6 +44,18 @@
     ];
   };
 
+  # Backup storage, prepped for cloud synchronization :)
+  fileSystems."/home/awiteb/backup" = {
+    device = "/dev/disk/by-uuid/5f4db8c6-d26c-46ba-812e-1f0989552b52";
+    fsType = "ext4";
+  };
+
+  # My personal Rust registry. Why not?
+  fileSystems."/home/awiteb/rust-registry" = {
+    device = "/dev/disk/by-uuid/2fa8bfa1-4937-40fb-8abc-5d2056ecd59d";
+    fsType = "ext4";
+  };
+
   swapDevices = [
     { device = "/dev/disk/by-uuid/03abd1a1-4a32-4d02-8267-933775b732cd"; }
   ];
