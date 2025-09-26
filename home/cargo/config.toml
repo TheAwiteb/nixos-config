@@ -1,0 +1,12 @@
+[source.crates-io]
+replace-with = "kellnr"
+
+[source.kellnr]
+registry = "sparse+http://localhost:29840/api/v1/cratesio/"
+
+[registries.kellnr]
+index = "sparse+http://localhost:29840/api/v1/crates/"
+credential-provider = ["cargo:token"]
+# No issue. It's a localhost token :)
+token = "sDpgQVyKJfwGDbQMkshvX9131JmJi8nR"
+

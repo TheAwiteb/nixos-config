@@ -17,6 +17,7 @@
     ./zellij
     ./zoxide
     ./zsh
+    ./cargo
   ];
 
   home = {

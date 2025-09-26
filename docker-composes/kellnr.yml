@@ -1,0 +1,34 @@
+services:
+    kellnr:
+        image: "ghcr.io/kellnr/kellnr:5"
+        restart: unless-stopped
+        container_name: "kellnr"
+        volumes:
+            - "/home/awiteb/rust-registry/kdata:/opt/kdata"
+        environment:
+            - KELLNR_REGISTRY__MAX_CRATE_SIZE=30
+            - KELLNR_ORIGIN__HOSTNAME=localhost
+            - KELLNR_LOCAL__PORT=29840
+            - KELLNR_ORIGIN__PORT=29840
+            - KELLNR_ORIGIN__PROTOCOL=http
+            - KELLNR_PROXY__ENABLED=true
+            - KELLNR_PROXY__NUM_THREADS=2
+            - KELLNR_DOCS__ENABLED=false
+            - KELLNR_POSTGRESQL__ENABLED=true
+            - KELLNR_POSTGRESQL__ADDRESS=postgresql
+            - KELLNR_POSTGRESQL__DB=kellnr
+            - KELLNR_POSTGRESQL__USER=kellnr
+            - KELLNR_POSTGRESQL__PWD=somepassword
+        ports:
+            - 127.0.0.1:29840:29840
+    postgresql:
+        container_name: postgresql_kellnr
+        image: postgres:latest
+        restart: unless-stopped
+        environment:
+            POSTGRES_PASSWORD: somepassword
+            POSTGRES_USER: kellnr
+            POSTGRES_DB: kellnr
+            POSTGRES_INITDB_ARGS: "--encoding='UTF8' --lc-collate='C' --lc-ctype='C'"
+        volumes:
+            - "/home/awiteb/rust-registry/pdata:/var/lib/postgresql/data"
