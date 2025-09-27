@@ -5,6 +5,10 @@
   inputs,
   ...
 }:
+let
+  n34 = inputs.n34.packages."${pkgs.system}".default;
+  dejadup = (import ./dejadup { inherit pkgs; });
+in
 {
   imports = [
     ./alacritty
@@ -18,6 +22,7 @@
     ./zoxide
     ./zsh
     ./cargo
+    ./dejadup/ignore.nix
   ];
 
   home = {
@@ -27,46 +32,46 @@
       "$HOME/.local/bin"
     ];
 
-    packages =
-      ((import ./rust-crates) { inherit pkgs; })
-      ++ (with inputs; [
-        n34.packages."${pkgs.system}".default
-      ])
-      ++ (with pkgs; [
-        curl
-        fastfetch
-        gnome-tweaks
-        htop
-        jq
-        libossp_uuid
-        libreoffice-qt6-fresh
-        sqlitebrowser
-        wget
-        xclip
-        zola
-      ])
-      ++ (with pkgs-unstable; [
-        brave
-        gnomeExtensions.clipboard-history
-        just
-        monero-gui
-        nixd
-        nixfmt-rfc-style
-        nushell
-        openssl
-        prismlauncher
-        ripgrep
-        sd
-        signal-desktop
-        simple-completion-language-server
-        skim
-        taplo
-        telegram-desktop
-        tor-browser
-        vlc
-        wasabiwallet
-        zed-editor
-      ]);
+    packages = [
+      n34
+      dejadup
+    ]
+    ++ ((import ./rust-crates) { inherit pkgs; })
+    ++ (with pkgs; [
+      curl
+      fastfetch
+      gnome-tweaks
+      htop
+      jq
+      libossp_uuid
+      libreoffice-qt6-fresh
+      sqlitebrowser
+      wget
+      xclip
+      zola
+    ])
+    ++ (with pkgs-unstable; [
+      brave
+      gnomeExtensions.clipboard-history
+      just
+      monero-gui
+      nixd
+      nixfmt-rfc-style
+      nushell
+      openssl
+      prismlauncher
+      ripgrep
+      sd
+      signal-desktop
+      simple-completion-language-server
+      skim
+      taplo
+      telegram-desktop
+      tor-browser
+      vlc
+      wasabiwallet
+      zed-editor
+    ]);
   };
 
   programs.home-manager.enable = true;
