@@ -56,6 +56,12 @@
     fsType = "ext4";
   };
 
+  # My VPS backup
+  fileSystems."/home/awiteb/vps-backup" = {
+    device = "/dev/disk/by-uuid/756fd314-7090-4ada-b21d-36268f3ae10a";
+    fsType = "ext4";
+  };
+
   swapDevices = [
     { device = "/dev/disk/by-uuid/03abd1a1-4a32-4d02-8267-933775b732cd"; }
   ];
