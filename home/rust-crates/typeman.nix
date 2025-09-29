@@ -7,18 +7,17 @@ let
 in
 rustPlatform.buildRustPackage rec {
   pname = "typeman";
-  version = "0.1.4";
+  version = "0.1.9";
   buildNoDefaultFeatures = true;
+  buildFeatures = [ "tui" ];
 
   src = fetchCrate {
     inherit pname version;
-    hash = "sha256-cXgBdD0f2OXy1BDiX4Bu2XiBg+j+OnB6HbQ2Cbbu0e4=";
+    hash = "sha256-KayxHnVlIZyWtwkPEg+sejFr6dtTxeGxdauP+ViSgL8=";
   };
 
   useFetchCargoVendor = true;
-  cargoHash = "sha256-0N5KnviCev4ri5xFwVeoSBSZnANGYO+aDTe66XefLgk=";
+  cargoHash = "sha256-x6PbDNWagD2IscZGhffZfWfvqA9n/gujjLk/gxHkviY=";
 
-  buildInputs = with pkgs; [
-    alsa-lib
-  ];
+  doCheck = false;
 }
