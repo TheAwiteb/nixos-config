@@ -26,29 +26,17 @@
         "bind \"Alt n\" \"Esc\"" = {
           SwitchToMode = "Normal";
         };
-        "bind \"h\" \"Left\"" = {
+        "bind \"Left\"" = {
           Resize = "Increase Left";
         };
-        "bind \"j\" \"Down\"" = {
+        "bind \"Down\"" = {
           Resize = "Increase Down";
         };
-        "bind \"k\" \"Up\"" = {
+        "bind \"Up\"" = {
           Resize = "Increase Up";
         };
-        "bind \"l\" \"Right\"" = {
+        "bind \"Right\"" = {
           Resize = "Increase Right";
-        };
-        "bind \"H\"" = {
-          Resize = "Decrease Left";
-        };
-        "bind \"J\"" = {
-          Resize = "Decrease Down";
-        };
-        "bind \"K\"" = {
-          Resize = "Decrease Up";
-        };
-        "bind \"L\"" = {
-          Resize = "Decrease Right";
         };
         "bind \"=\" \"+\"" = {
           Resize = "Increase";
@@ -62,16 +50,16 @@
         "bind \"Alt p\" \"Esc\"" = {
           SwitchToMode = "Normal";
         };
-        "bind \"h\" \"Left\"" = {
+        "bind \"Left\"" = {
           MoveFocus = "Left";
         };
-        "bind \"l\" \"Right\"" = {
+        "bind \"Right\"" = {
           MoveFocus = "Right";
         };
-        "bind \"j\" \"Down\"" = {
+        "bind \"Down\"" = {
           MoveFocus = "Down";
         };
-        "bind \"k\" \"Up\"" = {
+        "bind \"Up\"" = {
           MoveFocus = "Up";
         };
         "bind \"p\"" = {
@@ -122,16 +110,16 @@
         "bind \"p\"" = {
           MovePaneBackwards = { };
         };
-        "bind \"h\" \"Left\"" = {
+        "bind \"Left\"" = {
           MovePane = "Left";
         };
-        "bind \"j\" \"Down\"" = {
+        "bind \"Down\"" = {
           MovePane = "Down";
         };
-        "bind \"k\" \"Up\"" = {
+        "bind \"Up\"" = {
           MovePane = "Up";
         };
-        "bind \"l\" \"Right\"" = {
+        "bind \"Right\"" = {
           MovePane = "Right";
         };
       };
@@ -140,10 +128,10 @@
         "bind \"Alt t\" \"Esc\"" = {
           SwitchToMode = "Normal";
         };
-        "bind \"h\" \"Left\"" = {
+        "bind \"Left\"" = {
           GoToPreviousTab = { };
         };
-        "bind \"l\" \"Right\"" = {
+        "bind \"Right\"" = {
           GoToNextTab = { };
         };
         "bind \"n\"" = {
@@ -164,10 +152,10 @@
           EditScrollback = { };
           SwitchToMode = "Normal";
         };
-        "bind \"j\" \"Down\"" = {
+        "bind \"Down\"" = {
           ScrollDown = { };
         };
-        "bind \"k\" \"Up\"" = {
+        "bind \"Up\"" = {
           ScrollUp = { };
         };
       };
