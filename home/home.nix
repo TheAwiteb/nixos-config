@@ -55,6 +55,7 @@ in
       gnomeExtensions.clipboard-history
       just
       monero-gui
+      nak
       nixd
       nixfmt-rfc-style
       nushell
