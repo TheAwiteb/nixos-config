@@ -56,12 +56,16 @@
         name = "nix";
         auto-format = true;
       };
-
+      protobuf = {
+        name = "protobuf";
+        auto-format = true;
+      };
     in
     [
       rust
       toml
       nix
+      protobuf
     ];
 
   programs.helix.languages.grammar =
