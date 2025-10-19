@@ -18,12 +18,16 @@
     };
 
     language-server.rust-analyzer.config = {
+      # rust-analyzer.check.command
       check.command = "clippy";
+      # rust-analyzer.inlayHints
       inlayHints = {
         typeHints.enable = true;
         bindingModeHints.enable = true;
         closingBraceHints.minLines = 15;
       };
+      # rust-analyzer.cargo.buildScripts.enable
+      cargo.buildScripts.enable = false;
     };
 
     language-server.yaml-language-server.config.yaml = {
