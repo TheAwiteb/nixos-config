@@ -10,8 +10,11 @@ let
     filter
     attrNames
     readDir
+    stringLength
+    substring
     ;
+  endswith = s: suffix: substring (stringLength s - stringLength suffix) (stringLength s) s == suffix;
 in
 (map (pkgFile: ((import ./${pkgFile}) inputs)) (
-  filter (file: file != "default.nix") (attrNames (readDir ./.))
+  filter (file: file != "default.nix" && endswith file "nix") (attrNames (readDir ./.))
 ))
