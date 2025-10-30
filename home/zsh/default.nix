@@ -17,6 +17,11 @@ in
     source = ./oxide.zsh-theme;
     force = true;
   };
+  home.file.".user.justfile" = {
+    enable = true;
+    force = true;
+    source = ./.user.justfile;
+  };
 
   programs.zsh = {
     enable = true;
