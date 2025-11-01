@@ -13,7 +13,7 @@ home:
 
 # Switch to a new nixos generation
 nixos:
-    sudo nixos-rebuild switch --flake .
+    sudo nixos-rebuild switch --flake '.?submodules=1'
 
 # Run kellnr
 kellnr:
