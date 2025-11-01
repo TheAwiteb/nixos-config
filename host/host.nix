@@ -4,11 +4,12 @@
 {
   imports = [
     ./awiteb.nix
+    ./fonts
     ./hardware-configuration.nix
     ./hardware.nix
+    ./kill-switch.nix
     ./network.nix
     ./services
-    ./fonts
   ];
 
   nixpkgs.config.allowUnfree = true;

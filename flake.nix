@@ -43,7 +43,7 @@
     {
       nixosConfigurations = {
         nixos = lib.nixosSystem {
-          specialArgs = { inherit pkgs-unstable; };
+          specialArgs = { inherit pkgs-unstable secrets; };
           modules = [ ./host/host.nix ];
         };
       };
