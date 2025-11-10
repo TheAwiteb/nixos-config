@@ -21,7 +21,6 @@ in
     ./zellij
     ./zoxide
     ./zsh
-    ./cargo
     ./dejadup/ignore.nix
   ];
 

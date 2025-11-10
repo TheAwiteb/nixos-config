@@ -15,13 +15,5 @@ home:
 nixos:
     sudo nixos-rebuild switch --flake '.?submodules=1'
 
-# Run kellnr
-kellnr:
-    docker compose --file ./docker-composes/kellnr.yml up -d
-
-# Stop kellnr
-stop-kellnr:
-    docker compose --file ./docker-composes/kellnr.yml down
-
 # Switch both, home and nixos
 both: nixos && home
