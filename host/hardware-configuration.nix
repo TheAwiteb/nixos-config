@@ -50,12 +50,6 @@
     fsType = "ext4";
   };
 
-  # My personal Rust registry. Why not?
-  fileSystems."/home/awiteb/rust-registry" = {
-    device = "/dev/disk/by-uuid/2fa8bfa1-4937-40fb-8abc-5d2056ecd59d";
-    fsType = "ext4";
-  };
-
   # My VPS backup
   fileSystems."/home/awiteb/vps-backup" = {
     device = "/dev/disk/by-uuid/756fd314-7090-4ada-b21d-36268f3ae10a";
