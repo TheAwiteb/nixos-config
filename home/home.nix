@@ -43,6 +43,7 @@ in
       gnome-tweaks
       htop
       jq
+      lazpaint
       libossp_uuid
       libreoffice-qt6-fresh
       sqlitebrowser
