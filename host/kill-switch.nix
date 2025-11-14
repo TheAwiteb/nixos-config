@@ -12,14 +12,6 @@ let
       )
     );
 
-  dnsIps = lib.concatStringsSep ", " [
-    "9.9.9.9"
-    "1.1.1.1"
-    "8.8.8.8"
-    "149.112.112.112"
-    "1.0.0.1"
-    "8.8.4.4"
-  ];
   # Extracts IPs from a list of `ip:port` strings and joins them with ", ".
   vpnIps = splitUniqueJoin 0 secrets.vpnIpsPorts;
   # Extracts ports from a list of `ip:port` strings and joins them with ", ".
@@ -60,11 +52,6 @@ in
 
         # Accept established and related connections (for replies)
         ct state { established, related } accept
-
-        # Allow traffic to DNS servers
-        # Replace with your actual DNS server IPs if different
-        ip daddr { ${dnsIps} } udp dport 53 accept
-        ip daddr { ${dnsIps} } tcp dport 53 accept
 
         # Allow outgoing connections to VPN servers on specified ports
         ip daddr { ${vpnIps} } tcp dport { ${vpnPorts} } accept
