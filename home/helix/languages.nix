@@ -52,6 +52,16 @@
           "{" = "}";
         };
       };
+      markdown = {
+        name = "markdown";
+        comment-tokens = [
+          "-"
+          "+"
+          "*"
+          "- [ ]"
+          ">"
+        ];
+      };
       toml = {
         name = "toml";
         auto-format = true;
@@ -67,6 +77,7 @@
     in
     [
       rust
+      markdown
       toml
       nix
       protobuf
