@@ -1,0 +1,26 @@
+#! /usr/bin/env bash
+
+# Description:
+# This script runs 'scooter' and returns focus to the original pane, you should
+# run it as a command in `zellij-run` with `--close-on-exit` option in Helix.
+# Check how I use it in helix. It assumes 'zellij' is installed and depends on
+# this patch `../focus-pane-with-id.patch` by Tobias Pisani
+
+# Usage:
+# Pass the opener pane ID as the first argument when running the script.
+
+OPENER_PANE=$1
+
+zellij action resize +
+zellij action resize +
+# Run scooter
+scooter
+# When scooter done, return the focus to the original pane (Helix)
+zellij action focus-pane-with-id $OPENER_PANE
+
+# Press <Escape key> twice
+zellij action write 27 27
+# Write the reload command
+zellij action write-chars ':reload-all'
+# Press <Enter>
+zellij action write 13

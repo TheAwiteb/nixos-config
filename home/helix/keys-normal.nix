@@ -22,6 +22,11 @@
     C-y = [ "scroll_up" ];
     # Scroll view down
     C-e = [ "scroll_down" ];
+    # Search and replace
+    C-r = [
+      ":write-all"
+      ":sh zellij run -f -c -n 'Search and Replace' -- scooter-zellij $ZELLIJ_PANE_ID >/dev/null"
+    ];
 
     # Cutom commands
     space.space = {

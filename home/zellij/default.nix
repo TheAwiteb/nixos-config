@@ -18,6 +18,13 @@ in
     force = true;
   };
 
+  home.file.".local/bin/scooter-zellij" = {
+    enable = true;
+    source = ./scripts/scooter-zellij;
+    force = true;
+    executable = true;
+  };
+
   programs.zellij = {
     enable = true;
     package = (import ./package.nix { pkgs = pkgs-unstable; });

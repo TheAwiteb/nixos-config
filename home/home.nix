@@ -45,6 +45,7 @@ in
       lazpaint
       libossp_uuid
       libreoffice-qt6-fresh
+      scooter
       sqlitebrowser
       wget
       xclip
