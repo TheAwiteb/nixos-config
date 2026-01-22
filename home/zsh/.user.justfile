@@ -57,6 +57,10 @@ lprs-cp vault field:
 prism:
     nvidia-offload prismlauncher
 
+# Run Hytale launcher
+hytale:
+    nvidia-offload com.hypixel.HytaleLauncher
+
 # Echo the git commits in the range
 commits-since since:
     git log --pretty=%H '{{ since }}..HEAD'
