@@ -13,15 +13,16 @@ in
   imports = [
     ./alacritty
     ./bat
+    ./dejadup/ignore.nix
     ./eza
     ./git
     ./gnupg
     ./helix
+    ./obs
     ./ssh
     ./zellij
     ./zoxide
     ./zsh
-    ./dejadup/ignore.nix
   ];
 
   home = {
