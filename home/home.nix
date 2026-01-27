@@ -39,6 +39,7 @@ in
     ++ ((import ./rust-crates) { inherit pkgs; })
     ++ (with pkgs; [
       curl
+      discord
       fastfetch
       gnome-tweaks
       htop
