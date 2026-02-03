@@ -1,6 +1,7 @@
 {
   lib,
   secrets,
+  enableKillSwitch,
   ...
 }:
 let
@@ -18,8 +19,8 @@ let
   vpnPorts = splitUniqueJoin 1 secrets.vpnIpsPorts;
 in
 {
-  networking.firewall.enable = false;
-  networking.nftables.enable = true;
+  networking.firewall.enable = !enableKillSwitch;
+  networking.nftables.enable = enableKillSwitch;
   networking.nftables.flushRuleset = true;
 
   networking.nftables.ruleset = ''

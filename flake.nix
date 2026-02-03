@@ -39,11 +39,14 @@
         }
       );
       secrets = (import ./secrets);
+      # Controls the kill switch and related settings. When set to `false`, it disables the
+      # kill switch, enables IPv6, and disables offload to only use the detected GPU.
+      enableKillSwitch = builtins.getEnv "NIXOS_ENABLE_KILL_SWITCH" == "true";
     in
     {
       nixosConfigurations = {
         nixos = lib.nixosSystem {
-          specialArgs = { inherit pkgs-unstable secrets; };
+          specialArgs = { inherit pkgs-unstable secrets enableKillSwitch; };
           modules = [ ./host/host.nix ];
         };
       };
@@ -51,7 +54,14 @@
       homeConfigurations = {
         awiteb = home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
-          extraSpecialArgs = { inherit inputs pkgs-unstable secrets; };
+          extraSpecialArgs = {
+            inherit
+              inputs
+              pkgs-unstable
+              secrets
+              enableKillSwitch
+              ;
+          };
           modules = [
             ./home/home.nix
           ];
