@@ -13,7 +13,7 @@ agit remote base title description force:
 
 # Create a signed git tag
 tag git-tag:
-    TZ=UTC git tag "{{git-tag}}" -s -m "The {{trim_start_match(git-tag, 'v')}} version release"
+    TZ=UTC git tag "{{git-tag}}" -s -m "The version {{trim_start_match(git-tag, 'v')}} release"
 
 # Add trailer to git commits
 add-trailer from trailer:
