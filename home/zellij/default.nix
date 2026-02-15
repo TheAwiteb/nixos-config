@@ -25,6 +25,34 @@ in
     executable = true;
   };
 
+  home.file.".local/bin/cpu_info.sh" = {
+    enable = true;
+    source = ./scripts/cpu_info.sh;
+    force = true;
+    executable = true;
+  };
+
+  home.file.".local/bin/gpu_info.sh" = {
+    enable = true;
+    source = ./scripts/gpu_info.sh;
+    force = true;
+    executable = true;
+  };
+
+  home.file.".local/bin/ram_info.sh" = {
+    enable = true;
+    source = ./scripts/ram_info.sh;
+    force = true;
+    executable = true;
+  };
+
+  home.file.".local/bin/disk_info.sh" = {
+    enable = true;
+    source = ./scripts/disk_info.sh;
+    force = true;
+    executable = true;
+  };
+
   programs.zellij = {
     enable = true;
     package = (import ./package.nix { pkgs = pkgs-unstable; });

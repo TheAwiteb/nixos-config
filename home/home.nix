@@ -38,6 +38,7 @@ in
     ]
     ++ ((import ./rust-crates) { inherit pkgs; })
     ++ (with pkgs; [
+      bc
       curl
       discord
       fastfetch
@@ -47,6 +48,7 @@ in
       lazpaint
       libossp_uuid
       libreoffice-qt6-fresh
+      lm_sensors
       scooter
       sqlitebrowser
       wget
