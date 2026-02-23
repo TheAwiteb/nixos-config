@@ -16,6 +16,7 @@ in
     ./dejadup/ignore.nix
     ./eza
     ./git
+    ./gnome-settings.nix
     ./gnupg
     ./helix
     ./obs
