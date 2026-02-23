@@ -1,7 +1,7 @@
 {
   lib,
+  pkgs,
   secrets,
-  enableKillSwitch,
   ...
 }:
 let
@@ -17,13 +17,7 @@ let
   vpnIps = splitUniqueJoin 0 secrets.vpnIpsPorts;
   # Extracts ports from a list of `ip:port` strings and joins them with ", ".
   vpnPorts = splitUniqueJoin 1 secrets.vpnIpsPorts;
-in
-{
-  networking.firewall.enable = !enableKillSwitch;
-  networking.nftables.enable = enableKillSwitch;
-  networking.nftables.flushRuleset = true;
-
-  networking.nftables.ruleset = ''
+  killSwitchRules = ''
     table ip filter {
       chain input {
         type filter hook input priority 0; policy drop;
@@ -63,4 +57,56 @@ in
       }
     }
   '';
+in
+{
+  networking.firewall.enable = true;
+  networking.nftables.enable = true;
+  networking.nftables.flushRuleset = true;
+
+  environment.etc."nftables/killswitch.nft".text = killSwitchRules;
+
+  # Service to apply rules at boot based on persisted state
+  systemd.services.apply-killswitch-at-boot = {
+    description = "Apply killswitch rules at boot if previously enabled";
+    wantedBy = [ "network-pre.target" ];
+    after = [ "nftables.service" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      if [ -f "/var/lib/killswitch-active" ]; then
+        echo "Killswitch was active, re-applying rules..."
+        ${pkgs.nftables}/bin/nft -f /etc/nftables/killswitch.nft
+      fi
+    '';
+  };
+
+  # killswitch scripts
+  environment.systemPackages = with pkgs; [
+    (writeScriptBin "switch-killswitch" ''
+      #!/bin/sh
+      echo "Switching to killswitch mode..."
+      ${pkgs.nftables}/bin/nft -f /etc/nftables/killswitch.nft
+      # Mark killswitch as active for persistence
+      touch /var/lib/killswitch-active
+    '')
+
+    (writeScriptBin "switch-normal" ''
+      #!/bin/sh
+      echo "Switching to normal mode..."
+      ${pkgs.nftables}/bin/nft flush ruleset
+      # Remove killswitch marker
+      rm -f /var/lib/killswitch-active
+
+    '')
+
+    (writeScriptBin "killswitch-status" ''
+      #!/bin/sh
+      if [ -f "/var/lib/killswitch-active" ]; then
+        echo "Status: KILLSWITCH ACTIVE"
+        echo "Firewall: Strict (VPN only)"
+      else
+        echo "Status: NORMAL MODE"
+        echo "Firewall: Normal"
+      fi
+    '')
+  ];
 }

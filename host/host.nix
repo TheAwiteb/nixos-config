@@ -1,6 +1,5 @@
 {
   pkgs,
-  enableKillSwitch,
   ...
 }:
 {
@@ -15,7 +14,6 @@
   ];
 
   nixpkgs.config.allowUnfree = true;
-  system.nixos.label = if enableKillSwitch then "kill-switch" else "no-kill-switch";
 
   # Automatic Garbage Collection
   nix.gc = {

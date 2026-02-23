@@ -1,7 +1,6 @@
 {
   config,
   pkgs-unstable,
-  enableKillSwitch,
   ...
 }:
 {
@@ -51,14 +50,12 @@
     nvidiaSettings = true;
 
     prime = {
-      # enable offload if the kill switch is on
       offload = {
-        enable = enableKillSwitch;
-        enableOffloadCmd = enableKillSwitch;
+        enable = false;
+        enableOffloadCmd = false;
       };
 
-      # use NVIDIA for evrything if the kill switch is off
-      sync.enable = !enableKillSwitch;
+      sync.enable = true;
       intelBusId = "PCI:0:2:0";
       nvidiaBusId = "PCI:1:0:0";
     };
