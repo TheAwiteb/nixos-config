@@ -8,6 +8,8 @@
   hardware.bluetooth.powerOnBoot = true;
 
   security.rtkit.enable = true;
+  services.tuned.enable = true;
+  services.upower.enable = true;
   # Enable sound with pipewire.
   services.pulseaudio.enable = false;
   services.pipewire = {
