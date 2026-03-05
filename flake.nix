@@ -39,8 +39,6 @@
         }
       );
       secrets = (import ./secrets);
-      # Controls the kill switch and related settings. When set to `false`, it disables the
-      # kill switch, enables IPv6, and disables offload to only use the detected GPU.
     in
     {
       nixosConfigurations = {

@@ -28,12 +28,16 @@
   };
   services.pcscd.enable = true;
 
+  programs.xwayland.enable = true;
   programs.zsh.enable = true;
   services.flatpak.enable = true;
   xdg.portal = {
-    wlr.enable = true;
-    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
     enable = true;
+    wlr.enable = true;
+    extraPortals = [
+      pkgs.xdg-desktop-portal-gnome
+    ];
+    config.common.default = [ "gnome" ];
   };
   virtualisation.docker.enable = true;
   virtualisation.docker.autoPrune.enable = true;

@@ -49,10 +49,19 @@ in
       libossp_uuid
       libreoffice-qt6-fresh
       lm_sensors
+      nushell
+      openssl
+      prismlauncher
+      ripgrep
       scooter
+      sd
+      skim
       sqlitebrowser
+      wasabiwallet
       wget
       xclip
+      xwayland-satellite
+      zed-editor
       zola
     ])
     ++ (with pkgs-unstable; [
@@ -62,21 +71,13 @@ in
       monero-gui
       nak
       nixd
-      nixfmt-rfc-style
-      nushell
-      openssl
-      prismlauncher
-      ripgrep
-      sd
+      nixfmt
       signal-desktop
       simple-completion-language-server
-      skim
       taplo
       telegram-desktop
       tor-browser
       vlc
-      wasabiwallet
-      zed-editor
     ]);
   };
 
