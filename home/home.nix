@@ -41,7 +41,6 @@ in
     ++ (with pkgs; [
       bc
       curl
-      discord
       fastfetch
       gnome-tweaks
       htop
