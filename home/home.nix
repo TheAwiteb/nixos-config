@@ -1,4 +1,3 @@
-# TODO: Setup gtk <ref https://github.com/colonelpanic8/dotfiles/blob/2df1d71367187322efcd149452fc6207dd7b0f80/nixos/home-manager.nix#L57>
 {
   pkgs,
   pkgs-unstable,
@@ -16,7 +15,7 @@ in
     ./dejadup/ignore.nix
     ./eza
     ./git
-    ./gnome-settings.nix
+    ./gnome
     ./gnupg
     ./helix
     ./obs
@@ -32,6 +31,14 @@ in
     sessionPath = [
       "$HOME/.local/bin"
     ];
+
+    pointerCursor = {
+      gtk.enable = true;
+      x11.enable = true;
+      package = pkgs.bibata-cursors;
+      name = "Bibata-Modern-Classic";
+      size = 16;
+    };
 
     packages = [
       n34
