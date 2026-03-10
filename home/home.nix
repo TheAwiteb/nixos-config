@@ -65,6 +65,7 @@ in
       zola
     ])
     ++ (with pkgs-unstable; [
+      anytype
       brave
       gnomeExtensions.clipboard-history
       just
