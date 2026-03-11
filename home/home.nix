@@ -6,13 +6,20 @@
 }:
 let
   n34 = inputs.n34.packages."${pkgs.system}".default;
-  dejadup = (import ./dejadup { inherit pkgs; });
+
+  patchedPackages = {
+    deja-dup = pkgs.deja-dup.overrideAttrs (
+      final: prev: {
+        patches = (prev.patches or [ ]) ++ [ ./dejadup/dejadupignore-file.patch ];
+      }
+    );
+  };
 in
 {
   imports = [
     ./alacritty
     ./bat
-    ./dejadup/ignore.nix
+    ./dejadup
     ./eza
     ./git
     ./gnome
@@ -42,7 +49,7 @@ in
 
     packages = [
       n34
-      dejadup
+      patchedPackages.deja-dup
     ]
     ++ ((import ./rust-crates) { inherit pkgs; })
     ++ (with pkgs; [
