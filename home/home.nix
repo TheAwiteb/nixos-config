@@ -18,6 +18,7 @@ in
 {
   imports = [
     ./alacritty
+    ./background_jobs
     ./bat
     ./dejadup
     ./eza

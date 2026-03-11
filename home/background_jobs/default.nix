@@ -1,0 +1,6 @@
+{ ... }:
+{
+  imports = [
+    ./auto-wallpaper.nix
+  ];
+}
