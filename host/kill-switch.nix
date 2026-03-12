@@ -8,9 +8,7 @@ let
   splitUniqueJoin =
     idx: list:
     lib.concatStringsSep ", " (
-      lib.lists.unique (
-        builtins.map (ipPort: builtins.elemAt (lib.strings.splitString ":" ipPort) idx) list
-      )
+      lib.lists.unique (map (ipPort: builtins.elemAt (lib.strings.splitString ":" ipPort) idx) list)
     );
 
   # Extracts IPs from a list of `ip:port` strings and joins them with ", ".
@@ -24,6 +22,9 @@ let
 
         # Allow loopback traffic (localhost)
         iif "lo" accept
+
+        # Allow specific LAN subnet
+        ip saddr 192.168.1.0/24 accept
 
         # Accept established and related connections
         ct state { established, related } accept
@@ -44,6 +45,9 @@ let
 
         # Allow loopback traffic (localhost)
         oif "lo" accept
+
+        # Allow specific LAN subnet
+        ip daddr 192.168.1.0/24 accept
 
         # Accept established and related connections (for replies)
         ct state { established, related } accept
