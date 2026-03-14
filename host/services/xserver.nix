@@ -2,11 +2,14 @@
   ...
 }:
 {
-  services.xserver.enable = true;
-  services.xserver.displayManager.gdm.enable = true;
-  services.xserver.desktopManager.gnome.enable = true;
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "";
+  services.xserver = {
+    enable = true;
+    desktopManager.gnome.enable = true;
+    displayManager.gdm.enable = true;
+    xkb = {
+      layout = "us,ara";
+      variant = "";
+    };
   };
+  services.displayManager.defaultSession = "gnome";
 }
