@@ -15,7 +15,10 @@
 
     ignores = [
       "TODO"
-      ".vscode"
+      "/.vscode"
+      "/target"
+      ".nix-profile"
+      ".nix-profile-*-link"
     ];
     hooks = {
       prepare-commit-msg = ./prepare-commit-msg;
