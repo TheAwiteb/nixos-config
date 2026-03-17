@@ -87,25 +87,18 @@
         language-servers = [ ];
         auto-format = false;
       };
+      docker-compose = {
+        name = "docker-compose";
+        grammar = "yaml";
+      };
     in
     [
+      docker-compose
       markdown
       nix
       protobuf
       rhai
       rust
       toml
-    ];
-
-  programs.helix.languages.grammar =
-    let
-      docker-compose = {
-        name = "docker-compose";
-        source.rev = "0e36bed171768908f331ff7dff9d956bae016efb";
-        source.git = "https://github.com/ikatyang/tree-sitter-yaml";
-      };
-    in
-    [
-      docker-compose
     ];
 }
