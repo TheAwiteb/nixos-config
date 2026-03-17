@@ -74,13 +74,27 @@
         name = "protobuf";
         auto-format = true;
       };
+      rhai = {
+        name = "rhai";
+        comment-token = "//";
+        indent = {
+          tab-width = 4;
+          unit = "    ";
+        };
+        file-types = [ "rhai" ];
+        grammar = "rust";
+        scope = "source.rust";
+        language-servers = [ ];
+        auto-format = false;
+      };
     in
     [
-      rust
       markdown
-      toml
       nix
       protobuf
+      rhai
+      rust
+      toml
     ];
 
   programs.helix.languages.grammar =

@@ -11,6 +11,12 @@
     ./themes
   ];
 
+  # symlink `runtime` directory
+  home.file.".config/helix/runtime" = {
+    source = ./runtime;
+    recursive = true;
+  };
+
   programs.helix = {
     enable = true;
     package = pkgs-unstable.helix;
