@@ -19,9 +19,9 @@
     # Reflow the text
     A-q = [ ":reflow" ];
     # Scroll view up
-    C-y = [ "scroll_up" ];
+    C-u = [ "scroll_up" ];
     # Scroll view down
-    C-e = [ "scroll_down" ];
+    C-d = [ "scroll_down" ];
     # Search and replace
     C-r = [
       ":write-all"
