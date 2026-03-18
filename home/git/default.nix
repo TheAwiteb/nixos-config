@@ -15,6 +15,7 @@
 
     ignores = [
       "TODO"
+      "TODO.md"
       "/.vscode"
       "/target"
       ".nix-profile"
