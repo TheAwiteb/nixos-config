@@ -22,14 +22,14 @@ with lib.hm.gvariant;
 
     "org/gnome/deja-dup" = {
       backend = "local";
-      delete-after = 182;
+      delete-after = 90;
       periodic = true;
       periodic-period = 7;
       tool-when-new = "restic";
     };
 
     "org/gnome/deja-dup/local" = {
-      folder = "backup";
+      folder = "/mnt/backup";
     };
 
     "org/gnome/desktop/background" = {

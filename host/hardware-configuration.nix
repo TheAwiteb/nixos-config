@@ -45,16 +45,29 @@
   };
 
   # Backup storage, prepped for cloud synchronization :)
-  fileSystems."/home/awiteb/backup" = {
+  fileSystems."/mnt/backup" = {
     device = "/dev/disk/by-uuid/5f4db8c6-d26c-46ba-812e-1f0989552b52";
     fsType = "ext4";
+    options = [
+      "nofail"
+      "x-systemd.device-timeout=5"
+    ];
   };
 
   # My VPS backup
-  fileSystems."/home/awiteb/vps-backup" = {
+  fileSystems."/mnt/vps-backup" = {
     device = "/dev/disk/by-uuid/756fd314-7090-4ada-b21d-36268f3ae10a";
     fsType = "ext4";
+    options = [
+      "nofail"
+      "x-systemd.device-timeout=5"
+    ];
   };
+
+  systemd.tmpfiles.rules = [
+    "d /mnt/backup 0755 awiteb users - -"
+    "d /mnt/vps-backup 0755 awiteb users - -"
+  ];
 
   swapDevices = [
     { device = "/dev/disk/by-uuid/03abd1a1-4a32-4d02-8267-933775b732cd"; }
