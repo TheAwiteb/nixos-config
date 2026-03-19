@@ -37,14 +37,14 @@ lprs-edit vault field:
     UUID="{{ uuid() }}"
     read -s -p "Master Password: " MASTER_PASS
 
-    lprs -m $MASTER_PASS get "{{vault}}" {{field}} > /tmp/$UUID
+    lprs -m $MASTER_PASS get "{{vault}}" "{{field}}" > /tmp/$UUID
     $EDITOR /tmp/$UUID
     case "{{field}}" in
       "name" | "username" | "password" | "service" | "note" | "totp-secret")
-        lprs -m $MASTER_PASS edit {{vault}} --{{field}}="$(cat /tmp/$UUID)"
+        lprs -m $MASTER_PASS edit "{{vault}}" --{{field}}="$(cat /tmp/$UUID)"
         ;;
       *)
-        lprs -m $MASTER_PASS edit {{vault}} --custom {{field}}="$(cat /tmp/$UUID)"
+        lprs -m $MASTER_PASS edit "{{vault}}" --custom "{{field}}"="$(cat /tmp/$UUID)"
         ;;
     esac
     rm -fr /tmp/$UUID
