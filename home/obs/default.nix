@@ -2,15 +2,13 @@
   pkgs,
   ...
 }:
-let
-  plugins = pkgs.obs-studio-plugins;
-in
 {
   programs.obs-studio = {
     enable = true;
     package = pkgs.obs-studio;
-    plugins = with plugins; [
+    plugins = with pkgs.obs-studio-plugins; [
       obs-vaapi
+      obs-vkcapture
       obs-vkcapture
     ];
   };
