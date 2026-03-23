@@ -94,6 +94,8 @@ in
       telegram-desktop
       tor-browser
       vlc
+      wl-clipboard
+      xdg-utils
     ]);
   };
 
