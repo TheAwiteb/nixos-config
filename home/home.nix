@@ -5,7 +5,8 @@
   ...
 }:
 let
-  n34 = inputs.n34.packages."${pkgs.system}".default;
+  hostSystem = pkgs.stdenv.hostPlatform.system;
+  n34 = inputs.n34.packages."${hostSystem}".default;
 
   patchedPackages = {
     deja-dup = pkgs.deja-dup.overrideAttrs (

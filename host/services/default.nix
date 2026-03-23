@@ -4,7 +4,7 @@
 {
   imports = [
     ./tor.nix
-    ./xserver.nix
+    ./gnome.nix
   ];
 
   # touchpad

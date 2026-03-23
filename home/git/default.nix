@@ -7,9 +7,6 @@
     enable = true;
     package = pkgs-unstable.gitFull;
 
-    userName = "Awiteb";
-    userEmail = "a@4rs.nl";
-
     signing.key = "4F0E0686B1C850BAF9ED9FDF3F6B55640AA6682F";
     signing.signByDefault = true;
 
@@ -26,9 +23,12 @@
     };
   };
 
-  programs.git.extraConfig = {
+  programs.git.settings = {
+    user.name = "Awiteb";
+    user.email = "a@4rs.nl";
+
     init.defaultBranch = "master"; # In case they changed it to anything else
-    merge.conflictstyle = "diff3";
+    merge.conflictstyle = "zdiff3";
     pull.rebase = true;
     format = {
       useAutoBase = true;
@@ -38,9 +38,10 @@
     };
   };
 
-  programs.git.delta = {
-    enable = true;
+  programs.delta = {
     package = pkgs-unstable.delta;
+    enable = true;
+    enableGitIntegration = true;
     options = {
       navigate = true;
       line-numbers = true;
