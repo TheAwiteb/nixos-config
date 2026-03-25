@@ -83,6 +83,7 @@ in
     ++ (with pkgs-unstable; [
       anytype
       brave
+      cargo-llvm-cov
       gnomeExtensions.clipboard-history
       just
       monero-gui
