@@ -55,7 +55,11 @@ in
 
   programs.zellij = {
     enable = true;
-    package = (import ./package.nix { pkgs = pkgs-unstable; });
+    package = pkgs-unstable.zellij.overrideAttrs (
+      final: prev: {
+        patches = (prev.patches or [ ]) ++ [ ./focus-pane-with-id.patch ];
+      }
+    );
     enableZshIntegration = true;
   };
 
