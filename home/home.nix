@@ -90,6 +90,7 @@ in
       nak
       nixd
       nixfmt
+      samply
       signal-desktop
       simple-completion-language-server
       taplo
