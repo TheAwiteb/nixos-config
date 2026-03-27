@@ -13,7 +13,7 @@
     ignores = [
       "TODO"
       "TODO.md"
-      "/.vscode"
+      "/.helix"
       "/target"
       ".nix-profile"
       ".nix-profile-*-link"
