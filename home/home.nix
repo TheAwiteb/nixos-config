@@ -23,6 +23,7 @@ in
     ./bat
     ./dejadup
     ./eza
+    ./flatpak.nix
     ./git
     ./gnome
     ./gnupg
