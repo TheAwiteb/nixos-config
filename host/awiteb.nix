@@ -16,6 +16,7 @@
       "networkmanager"
       "wheel"
       "docker"
+      "gamemode"
     ];
     packages = [ ];
   };
@@ -27,6 +28,18 @@
     };
   };
   services.pcscd.enable = true;
+
+  programs.steam = {
+    enable = true;
+    gamescopeSession.enable = true;
+    package = pkgs.steam.override {
+      extraPkgs =
+        pkgs: with pkgs; [
+          gamemode
+        ];
+    };
+  };
+  programs.gamemode.enable = true;
 
   programs.xwayland.enable = true;
   programs.zsh.enable = true;
