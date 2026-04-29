@@ -57,7 +57,7 @@ in
     enable = true;
     package = pkgs-unstable.zellij.overrideAttrs (
       final: prev: {
-        patches = (prev.patches or [ ]) ++ [ ./focus-pane-with-id.patch ];
+        # patches = (prev.patches or [ ]) ++ [ ./focus-pane-with-id.patch ];
       }
     );
     enableZshIntegration = true;
