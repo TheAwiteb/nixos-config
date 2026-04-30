@@ -18,13 +18,6 @@ in
     force = true;
   };
 
-  home.file.".local/bin/scooter-zellij" = {
-    enable = true;
-    source = ./scripts/scooter-zellij;
-    force = true;
-    executable = true;
-  };
-
   home.file.".local/bin/cpu_info.sh" = {
     enable = true;
     source = ./scripts/cpu_info.sh;
@@ -55,11 +48,7 @@ in
 
   programs.zellij = {
     enable = true;
-    package = pkgs-unstable.zellij.overrideAttrs (
-      final: prev: {
-        # patches = (prev.patches or [ ]) ++ [ ./focus-pane-with-id.patch ];
-      }
-    );
+    package = pkgs-unstable.zellij;
     enableZshIntegration = true;
   };
 

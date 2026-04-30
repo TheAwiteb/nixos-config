@@ -70,7 +70,6 @@ in
       openssl
       prismlauncher
       ripgrep
-      scooter
       sd
       skim
       sqlitebrowser
