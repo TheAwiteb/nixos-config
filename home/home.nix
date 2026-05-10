@@ -59,6 +59,7 @@ in
       bc
       curl
       fastfetch
+      flatpak-builder
       gnome-tweaks
       htop
       jq
