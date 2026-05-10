@@ -56,6 +56,7 @@ in
     ]
     ++ ((import ./rust-crates) { inherit pkgs; })
     ++ (with pkgs; [
+      appstream
       bc
       curl
       fastfetch
