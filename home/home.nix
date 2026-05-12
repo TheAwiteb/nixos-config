@@ -18,7 +18,6 @@ let
 in
 {
   imports = [
-    ./alacritty
     ./background_jobs
     ./bat
     ./dejadup
@@ -28,6 +27,7 @@ in
     ./gnome
     ./gnupg
     ./helix
+    ./kitty
     ./obs
     ./ssh
     ./zoxide

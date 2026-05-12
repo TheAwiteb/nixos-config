@@ -43,5 +43,6 @@ in
   programs.zsh.sessionVariables = {
     EDITOR = "hx";
     ZSH = zshDir;
+    DISABLE_AUTO_TITLE = "true";
   };
 }

@@ -143,7 +143,7 @@ with lib.hm.gvariant;
       favorite-apps = [
         "org.gnome.Nautilus.desktop"
         "brave-browser.desktop"
-        "Alacritty.desktop"
+        "kitty.desktop"
       ];
       remember-mount-password = false;
     };
