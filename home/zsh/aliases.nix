@@ -24,6 +24,5 @@
     md = "mkdir";
     open = "xdg-open";
     tra = "trash put";
-    ze = "zellij";
   };
 }

@@ -42,7 +42,6 @@ in
 
   programs.zsh.sessionVariables = {
     EDITOR = "hx";
-    ZELLIJ_AUTO_EXIT = "true";
     ZSH = zshDir;
   };
 }

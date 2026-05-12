@@ -30,7 +30,6 @@ in
     ./helix
     ./obs
     ./ssh
-    ./zellij
     ./zoxide
     ./zsh
   ];
