@@ -45,8 +45,4 @@ in
     ZELLIJ_AUTO_EXIT = "true";
     ZSH = zshDir;
   };
-
-  programs.zsh.initContent = ''
-    export OXDRAW_WEB_DIST="$(nix-store --query $(which oxdraw))/frontend"
-  '';
 }
