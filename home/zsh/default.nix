@@ -37,7 +37,9 @@ in
     enable = true;
     custom = zshCustom;
     theme = "oxide";
-    plugins = [ ];
+    plugins = [
+      "last-working-dir"
+    ];
   };
 
   programs.zsh.sessionVariables = {
