@@ -54,19 +54,8 @@
     ];
   };
 
-  # My VPS backup
-  fileSystems."/mnt/vps-backup" = {
-    device = "/dev/disk/by-uuid/756fd314-7090-4ada-b21d-36268f3ae10a";
-    fsType = "ext4";
-    options = [
-      "nofail"
-      "x-systemd.device-timeout=5"
-    ];
-  };
-
   systemd.tmpfiles.rules = [
     "d /mnt/backup 0755 awiteb users - -"
-    "d /mnt/vps-backup 0755 awiteb users - -"
   ];
 
   swapDevices = [
