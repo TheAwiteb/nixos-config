@@ -20,18 +20,6 @@ with lib.hm.gvariant;
       tab-width = mkUint32 4;
     };
 
-    "org/gnome/deja-dup" = {
-      backend = "local";
-      delete-after = 90;
-      periodic = true;
-      periodic-period = 7;
-      tool-when-new = "restic";
-    };
-
-    "org/gnome/deja-dup/local" = {
-      folder = "/mnt/backup";
-    };
-
     "org/gnome/desktop/background" = {
       picture-options = "zoom";
       picture-uri = "file:///home/awiteb/.config/background";

@@ -7,20 +7,11 @@
 let
   hostSystem = pkgs.stdenv.hostPlatform.system;
   n34 = inputs.n34.packages."${hostSystem}".default;
-
-  patchedPackages = {
-    deja-dup = pkgs.deja-dup.overrideAttrs (
-      final: prev: {
-        patches = (prev.patches or [ ]) ++ [ ./dejadup/dejadupignore-file.patch ];
-      }
-    );
-  };
 in
 {
   imports = [
     ./background_jobs
     ./bat
-    ./dejadup
     ./eza
     ./flatpak.nix
     ./git
@@ -51,7 +42,6 @@ in
 
     packages = [
       n34
-      patchedPackages.deja-dup
     ]
     ++ ((import ./rust-crates) { inherit pkgs; })
     ++ (with pkgs; [
