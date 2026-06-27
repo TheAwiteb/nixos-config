@@ -16,7 +16,6 @@
   boot.initrd.availableKernelModules = [
     "xhci_pci"
     "thunderbolt"
-    "vmd"
     "ahci"
     "nvme"
     "usbhid"
@@ -28,7 +27,7 @@
   boot.extraModulePackages = [ ];
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/a2b521d2-1c23-415d-bf6f-11828ac0ee2e";
+    device = "/dev/mapper/luks-ee06cc22-f1e3-4e5f-941f-1c13179ea7ce";
     fsType = "ext4";
   };
 
@@ -36,7 +35,7 @@
     "/dev/disk/by-uuid/ee06cc22-f1e3-4e5f-941f-1c13179ea7ce";
 
   fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/6785-E8F0";
+    device = "/dev/disk/by-uuid/F86E-CE70";
     fsType = "vfat";
     options = [
       "fmask=0077"
@@ -44,32 +43,14 @@
     ];
   };
 
-  # Backup storage, prepped for cloud synchronization :)
-  fileSystems."/mnt/backup" = {
-    device = "/dev/disk/by-uuid/5f4db8c6-d26c-46ba-812e-1f0989552b52";
-    fsType = "ext4";
-    options = [
-      "nofail"
-      "x-systemd.device-timeout=5"
-    ];
-  };
-
-  systemd.tmpfiles.rules = [
-    "d /mnt/backup 0755 awiteb users - -"
-  ];
-
   swapDevices = [
-    { device = "/dev/disk/by-uuid/03abd1a1-4a32-4d02-8267-933775b732cd"; }
+    { device = "/dev/mapper/luks-2095201b-e0e7-4de1-b5e2-87e5cffbb772"; }
   ];
 
-  # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
-  # (the default) this is the recommended approach. When using systemd-networkd it's
-  # still possible to use this option, but it's recommended to use it in conjunction
-  # with explicit per-interface declarations with `networking.interfaces.<interface>.useDHCP`.
-  networking.useDHCP = lib.mkDefault true;
-  # networking.interfaces.enp43s0.useDHCP = lib.mkDefault true;
-  # networking.interfaces.wlp0s20f3.useDHCP = lib.mkDefault true;
+  boot.initrd.luks.devices."luks-2095201b-e0e7-4de1-b5e2-87e5cffbb772".device =
+    "/dev/disk/by-uuid/2095201b-e0e7-4de1-b5e2-87e5cffbb772";
 
+  networking.useDHCP = lib.mkDefault true;
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }
