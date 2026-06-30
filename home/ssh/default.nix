@@ -9,14 +9,14 @@
     enableDefaultConfig = false;
     package = pkgs-unstable.openssh;
   };
-  programs.ssh.matchBlocks = {
-    vps = {
-      user = secrets.ssh.vps.user;
-      hostname = secrets.ssh.vps.hostname;
-      port = secrets.ssh.vps.port;
-    };
+
+  programs.ssh.settings."vps" = {
+    user = secrets.ssh.vps.user;
+    hostname = secrets.ssh.vps.hostname;
+    port = secrets.ssh.vps.port;
   };
-  programs.ssh.matchBlocks."*" = {
+
+  programs.ssh.settings."*" = {
     forwardAgent = false;
     addKeysToAgent = "no";
     compression = false;
