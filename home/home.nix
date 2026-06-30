@@ -59,7 +59,6 @@ in
       lm_sensors
       nushell
       openssl
-      prismlauncher
       ripgrep
       sd
       skim
