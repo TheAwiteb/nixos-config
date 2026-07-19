@@ -59,6 +59,7 @@ in
       lm_sensors
       nushell
       openssl
+      python3Packages.diff-cover
       ripgrep
       sd
       skim
