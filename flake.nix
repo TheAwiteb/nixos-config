@@ -25,17 +25,11 @@
       pkgs = (
         import nixpkgs {
           inherit system;
-          config = {
-            allowUnfree = true;
-          };
         }
       );
       pkgs-unstable = (
         import nixpkgs-unstable {
           inherit system;
-          config = {
-            allowUnfree = true;
-          };
         }
       );
       secrets = (import ./secrets);
@@ -43,7 +37,7 @@
     {
       nixosConfigurations = {
         nixos = lib.nixosSystem {
-          specialArgs = { inherit pkgs-unstable secrets; };
+          specialArgs = { inherit secrets; };
           modules = [ ./host/host.nix ];
         };
       };
