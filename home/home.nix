@@ -13,7 +13,6 @@ in
     ./background_jobs
     ./bat
     ./eza
-    ./flatpak.nix
     ./git
     ./gnome
     ./gnupg
