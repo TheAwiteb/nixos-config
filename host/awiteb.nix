@@ -20,6 +20,7 @@
     packages = [ ];
   };
 
+  environment.sessionVariables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/intel_icd.x86_64.json";
   programs.gnupg = {
     agent = {
       enable = true;
