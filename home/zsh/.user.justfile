@@ -5,31 +5,13 @@ set script-interpreter := ["/usr/bin/env", "nu"]
 _default:
     @{{just_executable()}} -f {{justfile()}} --list
 
-# Create Agit PR
-agit remote base title description force:
-    #!/usr/bin/env bash
-    BRANCH=$(git rev-parse --abbrev-ref HEAD)
-    git push {{remote}} HEAD:refs/for/{{base}}/$BRANCH -o title="{{title}}" -o description="{{description}}" -o force-push="{{force}}"
-
 # Create a signed git tag
 tag git-tag:
     TZ=UTC git tag "{{git-tag}}" -s -m "The version {{trim_start_match(git-tag, 'v')}} release"
 
-# Add trailer to git commits
-add-trailer from trailer:
-    TZ=UTC git rebase {{from}} -x 'git commit --amend --no-edit --trailer "{{trailer}}"'
-
-# Fetch a forgejo pull request
-fetch-pr pr-number:
-    git fetch origin +refs/pull/{{pr-number}}/head:refs/heads/pr-{{pr-number}}
-
-# Delete all branches and keeping master
+# Delete all branches and keeping master and main
 delete-branches:
-    git branch | rg -v "master" | xargs git branch -D
-
-# Run file tree for helix
-file-tree:
-    twilight-tree --behavior.file_action='tree-picker.sh %s' --setup.with_cwd_header=false
+    git branch | rg -v "master|main" | xargs git branch -D
 
 # Edit a lprs field in your $EDITOR
 lprs-edit vault field:
@@ -53,14 +35,6 @@ lprs-edit vault field:
 lprs-cp vault field:
     lprs get '{{vault}}' '{{field}}' | xclip -selection clipboard
 
-# Run Prism Launcher
-prism:
-    nvidia-offload prismlauncher
-
-# Run Hytale launcher
-hytale:
-    nvidia-offload com.hypixel.HytaleLauncher
-
 # Echo the git commits in the range
 commits-since since:
     git log --pretty=%H '{{ since }}..HEAD'
@@ -77,8 +51,3 @@ list-tags:
         print -n ","
       }
     }
-
-nostr:
-    nix-shell -p rustup rust-analyzer pkg-config dbus --command zsh
-
-alias cs := commits-since
