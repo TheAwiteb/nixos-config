@@ -37,5 +37,10 @@
     "ctrl+2" = "goto_tab 2";
     "ctrl+3" = "goto_tab 3";
     "ctrl+4" = "goto_tab 4";
+
+    # Zoom
+    "ctrl+equal" = "change_font_size all +2.0";
+    "ctrl+minus" = "change_font_size all -2.0";
+    "ctrl+0" = "change_font_size all 0";
   };
 }
