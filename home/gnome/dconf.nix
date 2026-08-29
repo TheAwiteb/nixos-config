@@ -127,7 +127,6 @@ with lib.hm.gvariant;
     };
 
     "org/gnome/shell" = {
-      enabled-extensions = [ "clipboard-history@alexsaveau.dev" ];
       favorite-apps = [
         "org.gnome.Nautilus.desktop"
         "brave-browser.desktop"
@@ -138,15 +137,6 @@ with lib.hm.gvariant;
 
     "org/gnome/shell/app-switcher" = {
       current-workspace-only = true;
-    };
-
-    "org/gnome/shell/extensions/clipboard-history" = {
-      cache-size = 1000;
-      confirm-clear = false;
-      ignore-password-mimes = false;
-      paste-on-selection = false;
-      private-mode = false;
-      window-width-percentage = 18;
     };
   };
 }

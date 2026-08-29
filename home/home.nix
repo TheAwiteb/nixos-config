@@ -73,7 +73,6 @@ in
     ++ (with pkgs-unstable; [
       brave
       cargo-llvm-cov
-      gnomeExtensions.clipboard-history
       just
       monero-gui
       nak
