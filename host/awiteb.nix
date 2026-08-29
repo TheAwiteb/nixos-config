@@ -21,12 +21,6 @@
   };
 
   environment.sessionVariables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/intel_icd.x86_64.json";
-  programs.gnupg = {
-    agent = {
-      enable = true;
-      pinentryPackage = pkgs.pinentry-gnome3;
-    };
-  };
   services.pcscd.enable = true;
 
   programs.xwayland.enable = true;
