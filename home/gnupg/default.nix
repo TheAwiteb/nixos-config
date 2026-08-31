@@ -35,11 +35,15 @@
     enableSshSupport = true;
     enableZshIntegration = true;
 
+    # SSH key
+    sshKeys = [ "4C68027D6DF9B9AD38262EE7C6D3E1ABCF1541BA" ];
+
     # Zero TTL = prompt every time, never cache
     defaultCacheTtl = 1;
     maxCacheTtl = 1;
     defaultCacheTtlSsh = 1;
     maxCacheTtlSsh = 1;
+    noAllowExternalCache = true;
 
     pinentry.package = pkgs.pinentry-curses;
   };
