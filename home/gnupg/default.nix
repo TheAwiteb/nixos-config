@@ -41,10 +41,10 @@
     # Zero TTL = prompt every time, never cache
     defaultCacheTtl = 1;
     maxCacheTtl = 1;
-    defaultCacheTtlSsh = 1;
-    maxCacheTtlSsh = 1;
+    defaultCacheTtlSsh = 5;
+    maxCacheTtlSsh = 30;
     noAllowExternalCache = true;
 
-    pinentry.package = pkgs.pinentry-curses;
+    pinentry.package = pkgs.pinentry-gnome3;
   };
 }
