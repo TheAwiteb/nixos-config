@@ -41,7 +41,7 @@
     # Zero TTL = prompt every time, never cache
     defaultCacheTtl = 1;
     maxCacheTtl = 1;
-    defaultCacheTtlSsh = 5;
+    defaultCacheTtlSsh = 10;
     maxCacheTtlSsh = 30;
     noAllowExternalCache = true;
 
