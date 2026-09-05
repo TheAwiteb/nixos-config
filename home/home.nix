@@ -66,7 +66,6 @@ in
       wasabiwallet
       wget
       xclip
-      xwayland-satellite
       zed-editor
       zola
     ])

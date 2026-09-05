@@ -23,7 +23,7 @@
   environment.sessionVariables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/intel_icd.x86_64.json";
   services.pcscd.enable = true;
 
-  programs.xwayland.enable = true;
+  programs.xwayland.enable = false;
   programs.zsh.enable = true;
   services.flatpak.enable = true;
   xdg.portal = {
