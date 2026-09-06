@@ -50,6 +50,7 @@ in
       fastfetch
       flatpak-builder
       gnome-tweaks
+      gnomeExtensions.open-bar
       htop
       jq
       lazpaint
