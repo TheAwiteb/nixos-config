@@ -11,9 +11,9 @@ _default:
 home:
     home-manager switch --flake '.?submodules=1'
 
-# Switch to a new nixos generation
-nixos:
+# Switch to a new host generation
+host:
     sudo nixos-rebuild switch --flake '.?submodules=1'
 
-# Switch both, home and nixos
-both: nixos && home
+# Switch both, home and host
+both: host && home
