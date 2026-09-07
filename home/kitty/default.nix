@@ -30,6 +30,11 @@
     tab_title_template = "{index}";
 
     enable_audio_bell = "no";
+
+    # Use Helix as a pager
+    scrollback_pager = ''
+      sh -c 'sed -E "s/\x1b\][^\x1b]*(\x1b\\\\|\x07)//g; s/\x1b\[[0-9;:?]*[a-zA-Z]//g; /^[[:space:]]*$/d" | hx -'
+    '';
   };
 
   programs.kitty.keybindings = {
