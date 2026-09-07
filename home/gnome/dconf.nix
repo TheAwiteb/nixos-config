@@ -127,7 +127,9 @@ with lib.hm.gvariant;
     };
 
     "org/gnome/shell" = {
+      always-show-log-out = true;
       disable-user-extensions = false;
+      disable-extension-version-validation = true;
       enabled-extensions = [
         pkgs.gnomeExtensions.open-bar.extensionUuid
         pkgs.gnomeExtensions.blur-my-shell.extensionUuid
