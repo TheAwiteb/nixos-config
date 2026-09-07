@@ -51,6 +51,7 @@ in
       flatpak-builder
       gnome-tweaks
       gnomeExtensions.open-bar
+      gnomeExtensions.blur-my-shell
       htop
       jq
       lazpaint

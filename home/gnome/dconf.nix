@@ -130,6 +130,7 @@ with lib.hm.gvariant;
       disable-user-extensions = false;
       enabled-extensions = [
         pkgs.gnomeExtensions.open-bar.extensionUuid
+        pkgs.gnomeExtensions.blur-my-shell.extensionUuid
       ];
       disabled-extensions = [ ];
       favorite-apps = [
