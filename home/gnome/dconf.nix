@@ -54,14 +54,26 @@ with lib.hm.gvariant;
     };
 
     "org/gnome/desktop/interface" = {
-      accent-color = "purple";
+      accent-color = "slate";
       clock-format = "12h";
       clock-show-date = true;
       clock-show-seconds = false;
       clock-show-weekday = false;
       color-scheme = "prefer-dark";
+      cursor-blink = true;
+      cursor-blink-time = 1000;
+      cursor-size = 24;
+      cursor-theme = "Bibata-Modern-Classic";
+      document-font-name = "Vazirmatn  10";
+      enable-animations = true;
       enable-hot-corners = false;
+      font-name = "Vazirmatn  10";
+      icon-theme = "breeze-dark";
+      monospace-font-name = "Hack  10";
+      scaling-factor = mkUint32 1;
       show-battery-percentage = false;
+      text-scaling-factor = 1.0;
+      toolbar-style = "text";
       toolkit-accessibility = false;
     };
 
