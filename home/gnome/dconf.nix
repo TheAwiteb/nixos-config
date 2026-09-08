@@ -68,7 +68,7 @@ with lib.hm.gvariant;
       enable-animations = true;
       enable-hot-corners = false;
       font-name = "Vazirmatn  10";
-      icon-theme = "breeze-dark";
+      icon-theme = "Adwaita";
       monospace-font-name = "Hack  10";
       scaling-factor = mkUint32 1;
       show-battery-percentage = false;
