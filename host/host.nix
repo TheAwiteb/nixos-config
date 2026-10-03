@@ -27,7 +27,6 @@
     options = "--delete-older-than 14d";
   };
 
-  boot.kernelPackages = pkgs.linuxPackages_6_18;
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.initrd.luks.devices."luks-2095201b-e0e7-4de1-b5e2-87e5cffbb772".device =
