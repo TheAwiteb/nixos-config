@@ -47,11 +47,12 @@ in
       appstream
       bc
       curl
+      element-desktop
       fastfetch
       flatpak-builder
       gnome-tweaks
-      gnomeExtensions.open-bar
       gnomeExtensions.blur-my-shell
+      gnomeExtensions.open-bar
       htop
       jq
       lazpaint
