@@ -17,6 +17,24 @@
       };
     };
 
+    language-server.tailwindcss = {
+      command = "tailwindcss-language-server";
+      args = [ "--stdio" ];
+    };
+
+    language-server.tailwindcss.config.tailwindCSS = {
+      includeLanguages = {
+        rust = "html";
+      };
+      experimental = {
+        classRegex = [
+          ''class="([^"]*)"''
+          ''class=\(\s*"([^"]*)"''
+          ''class:([a-zA-Z0-9_\-:/\[\].]+)''
+        ];
+      };
+    };
+
     language-server.rust-analyzer.config = {
       # rust-analyzer.check.command
       check.command = "clippy";
@@ -42,6 +60,7 @@
         name = "rust";
         language-servers = [
           "scls"
+          "tailwindcss"
           "rust-analyzer"
         ];
         auto-pairs = {
@@ -54,6 +73,9 @@
       };
       markdown = {
         name = "markdown";
+        language-servers = [
+          "scls"
+        ];
         comment-tokens = [
           "-"
           "+"
@@ -64,10 +86,18 @@
       };
       toml = {
         name = "toml";
+        language-servers = [
+          "scls"
+          "taplo"
+        ];
         auto-format = true;
       };
       nix = {
         name = "nix";
+        language-servers = [
+          "scls"
+          "nixd"
+        ];
         auto-format = true;
       };
       protobuf = {
