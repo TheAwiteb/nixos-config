@@ -40,8 +40,25 @@
       k = ":pipe ccase -t kebab";
     };
 
-    g.D = "no_op";
     space.i = ":toggle-option lsp.display-inlay-hints";
+
+    # Goto declaration
+    g.D = {
+      # In the current window
+      c = [ "goto_declaration" ];
+      # In a vertical window
+      v = [
+        "vsplit"
+        "jump_view_up"
+        "goto_declaration"
+      ];
+      # In a horizontal window
+      h = [
+        "hsplit"
+        "jump_view_up"
+        "goto_declaration"
+      ];
+    };
 
     # Goto defentation
     g.d = {
