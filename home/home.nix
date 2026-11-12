@@ -1,13 +1,9 @@
 {
   pkgs,
   pkgs-unstable,
-  inputs,
+  flakeInputsPkgs,
   ...
 }:
-let
-  hostSystem = pkgs.stdenv.hostPlatform.system;
-  n34 = inputs.n34.packages."${hostSystem}".default;
-in
 {
   imports = [
     ./background_jobs
@@ -40,7 +36,7 @@ in
     };
 
     packages = [
-      n34
+      flakeInputsPkgs.n34
     ]
     ++ ((import ./rust-crates) { inherit pkgs; })
     ++ (with pkgs; [
