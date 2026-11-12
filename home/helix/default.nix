@@ -1,7 +1,13 @@
 {
-  pkgs-unstable,
+  flakeInputsPkgs,
   ...
 }:
+let
+  helixPerlOverlay = import ./helix-perl.nix;
+  helixPatched = flakeInputsPkgs.helix.override {
+    grammarOverlays = [ helixPerlOverlay ];
+  };
+in
 {
   imports = [
     ./keys-insert.nix
@@ -19,7 +25,7 @@
 
   programs.helix = {
     enable = true;
-    package = pkgs-unstable.helix;
+    package = helixPatched;
   };
   programs.helix.settings = {
     theme = "doom-updated"; # Custom theme in ./themes/doom-updated.nix

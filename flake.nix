@@ -4,8 +4,21 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "nixpkgs/nixos-unstable";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    n34.url = "git+https://git.4rs.nl/awiteb/n34.git";
+    n34 = {
+      url = "git+https://git.4rs.nl/awiteb/n34.git";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+      inputs.rust-overlay.follows = "rust-overlay";
+    };
+    helix = {
+      url = "github:helix-editor/helix/a714a818a3a4f6dd5aad3b003a78692f90a1703f";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+      inputs.rust-overlay.follows = "rust-overlay";
+    };
     home-manager = {
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -33,6 +46,10 @@
         }
       );
       secrets = (import ./secrets);
+      flakeInputsPkgs = {
+        n34 = inputs.n34.packages."${system}".default;
+        helix = inputs.helix.packages."${system}".default;
+      };
     in
     {
       nixosConfigurations = {
@@ -50,6 +67,7 @@
               inputs
               pkgs-unstable
               secrets
+              flakeInputsPkgs
               ;
           };
           modules = [
