@@ -1,11 +1,39 @@
 {
+  pkgs,
   flakeInputsPkgs,
   ...
 }:
 let
-  helixPerlOverlay = import ./helix-perl.nix;
+  helixGrammarOverlays = [
+    (import ./helix-perl.nix)
+  ];
+  helixPatches = [
+    ./patches/14795-ensure-cursor-is-in-view-after-LSP-jump-commands.patch
+  ];
+
+  # Helix calls `rustPlatform.buildRustPackage` and passes it a function that
+  # takes one argument and returns a set. This set should be passed to
+  # `buildRustPackage`, but here I intercept it, add my patches, and then pass
+  # it to the real `buildRustPackage`.
+  #
+  # I read the Helix flake multiple times; it is hard to understand, and I don't
+  # think I can patch `helix-unwrapped` while keeping it inside the wrapper
+  # other than this.
+  patchedRustPlatform = pkgs.rustPlatform // {
+    buildRustPackage =
+      helixFn:
+      let
+        helixSet = (helixFn null);
+        patchedSet = helixSet // {
+          patches = (helixSet.patches or [ ]) ++ helixPatches;
+        };
+      in
+      pkgs.rustPlatform.buildRustPackage (_: patchedSet);
+  };
+
   helixPatched = flakeInputsPkgs.helix.override {
-    grammarOverlays = [ helixPerlOverlay ];
+    grammarOverlays = helixGrammarOverlays;
+    rustPlatform = patchedRustPlatform;
   };
 in
 {
