@@ -30,6 +30,9 @@
 
     enable_audio_bell = "no";
 
+    # Enable splits layout only
+    enabled_layouts = "splits";
+
     # Use Helix as a pager
     scrollback_pager = ''
       sh -c 'sed -E "s/\x1b\][^\x1b]*(\x1b\\\\|\x07)//g; s/\x1b\[[0-9;:?]*[a-zA-Z]//g; /^[[:space:]]*$/d" | hx -'
@@ -63,5 +66,10 @@
     "ctrl+shift+'" = "neighboring_window down";
     "ctrl+shift+[" = "neighboring_window left";
     "ctrl+shift+]" = "neighboring_window right";
+
+    # Horizontal split
+    "alt+shift+h" = "launch --location=hsplit --cwd=current";
+    # Vertical split
+    "alt+shift+v" = "launch --location=vsplit --cwd=current";
   };
 }
