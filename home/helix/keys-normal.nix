@@ -25,8 +25,12 @@
 
     # Cutom commands
     space.space = {
-      # Git blame
-      b = ":sh git blame -L %{cursor_line},%{cursor_line} %{buffer_name}";
+      # Open yazi to manage files
+      y = [
+        '':insert-output yazi "%{buffer_name}"''
+        ":redraw"
+        ":reload-all"
+      ];
     };
 
     # Text case changer, by ccase <https://github.com/rutrum/ccase>

@@ -65,6 +65,7 @@
       wasabiwallet
       wget
       xclip
+      yazi
       zed-editor
       zola
     ])
