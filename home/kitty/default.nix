@@ -57,5 +57,11 @@
     "ctrl+shift+d" = "move_window down";
     "ctrl+shift+h" = "move_window left";
     "ctrl+shift+l" = "move_window right";
+
+    # Windows (aka panes) movements
+    "ctrl+shift+;" = "neighboring_window up";
+    "ctrl+shift+'" = "neighboring_window down";
+    "ctrl+shift+[" = "neighboring_window left";
+    "ctrl+shift+]" = "neighboring_window right";
   };
 }
