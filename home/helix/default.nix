@@ -10,6 +10,7 @@ let
   helixPatches = [
     ./patches/14795-ensure-cursor-is-in-view-after-LSP-jump-commands.patch
     ./patches/16070-clear-document-diagnostics-when-lsp-restart.patch
+    ./patches/16455-prevent-selection-underflow-after-prior-deletion.patch
   ];
 
   # Helix calls `rustPlatform.buildRustPackage` and passes it a function that
