@@ -58,9 +58,9 @@ in
         "file-encoding"
         "file-type"
       ];
-      mode.normal = "NORMAL";
-      mode.insert = "INSERT";
-      mode.select = "SELECT";
+      mode.normal = "NOR";
+      mode.insert = "INS";
+      mode.select = "SEL";
     };
 
     editor.lsp = {
