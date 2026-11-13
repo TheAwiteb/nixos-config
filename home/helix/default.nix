@@ -44,6 +44,7 @@ in
     editor.statusline = {
       left = [
         "mode"
+        "spinner"
         "spacer"
         "version-control"
         "file-name"
