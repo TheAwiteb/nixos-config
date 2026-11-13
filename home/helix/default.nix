@@ -73,6 +73,10 @@ in
       indent-guides.render = true;
       line-number = "relative";
       scroll-lines = 6;
+      trim-trailing-whitespace = true;
+      bufferline = "always";
+      mouse = false;
+      rainbow-brackets = true;
     };
 
     editor.inline-diagnostics.cursor-line = "hint";
@@ -80,8 +84,7 @@ in
     editor.statusline = {
       left = [
         "mode"
-        "spinner"
-        "spacer"
+        "total-line-numbers"
         "version-control"
         "file-name"
         "file-modification-indicator"
@@ -101,6 +104,8 @@ in
 
     editor.lsp = {
       display-messages = true;
+      display-progress-messages = true;
+      auto-document-highlight = true;
       display-inlay-hints = true;
     };
 
