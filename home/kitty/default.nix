@@ -17,7 +17,6 @@
 
   programs.kitty.settings = {
     window_padding_width = 0;
-    background_opacity = "0.98";
     confirm_os_window_close = 0;
     hide_window_decorations = "yes";
 
@@ -38,14 +37,25 @@
   };
 
   programs.kitty.keybindings = {
+    # Tab movements
     "ctrl+1" = "goto_tab 1";
     "ctrl+2" = "goto_tab 2";
     "ctrl+3" = "goto_tab 3";
     "ctrl+4" = "goto_tab 4";
+    "ctrl+5" = "goto_tab 5";
 
     # Zoom
     "ctrl+equal" = "change_font_size all +2.0";
     "ctrl+minus" = "change_font_size all -2.0";
     "ctrl+0" = "change_font_size all 0";
+
+    # Show the pager
+    "ctrl+shift+e" = "show_scrollback";
+
+    # Windows (aka panes) moving
+    "ctrl+shift+u" = "move_window up";
+    "ctrl+shift+d" = "move_window down";
+    "ctrl+shift+h" = "move_window left";
+    "ctrl+shift+l" = "move_window right";
   };
 }
