@@ -7,11 +7,15 @@ let
   helixGrammarOverlays = [
     (import ./helix-perl.nix)
   ];
+
+  /*nixfmt:disable*/
   helixPatches = [
-    ./patches/14795-ensure-cursor-is-in-view-after-LSP-jump-commands.patch
-    ./patches/16070-clear-document-diagnostics-when-lsp-restart.patch
-    ./patches/16455-prevent-selection-underflow-after-prior-deletion.patch
+    ./patches/14795-ensure-cursor-is-in-view-after-LSP-jump-commands.patch # Grabbed on 2026-11-13
+    ./patches/16070-clear-document-diagnostics-when-lsp-restart.patch      # Grabbed on 2026-11-13
+    ./patches/16455-prevent-selection-underflow-after-prior-deletion.patch # Grabbed on 2026-11-13
+    ./patches/16450-sort-deletions-before-merging.patch                    # Grabbed on 2026-11-13
   ];
+  /*nixfmt:enable*/
 
   # Helix calls `rustPlatform.buildRustPackage` and passes it a function that
   # takes one argument and returns a set. This set should be passed to
