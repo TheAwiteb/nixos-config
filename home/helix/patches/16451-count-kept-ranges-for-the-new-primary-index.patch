@@ -1,0 +1,87 @@
+From 9f764d15327cd65054a7402e29156ae31cb498ec Mon Sep 17 00:00:00 2001
+From: Santhi Prakash <b.santhiprakash@gmail.com>
+Date: Thu, 5 Nov 2026 05:53:26 +0000
+Subject: [PATCH] fix(transaction): count kept ranges for the new primary index
+
+- Problem: `change_by_selection_ignore_overlapping` set the new primary
+  index from the OLD selection index, so overlapping ranges dropped by
+  `change_ignore_overlapping` could leave `primary_index >= ranges.len()`,
+  panicking `Selection::new`'s debug assert (and leaving an out-of-bounds
+  primary index in release builds).
+- Fix: record `ranges.len()` (the index the range occupies in the new
+  list) instead of the old `idx` for the primary and last-selection
+  indices, so the new primary index always points into the new ranges.
+- Verification: new `change_by_selection_ignore_overlapping_primary` test
+  panics at `selection.rs`'s `primary_index < ranges.len()` assert on
+  pre-fix code and passes post-fix; `cargo test --workspace
+  --no-fail-fast` matches master (only the two pre-existing
+  grammar-fetch env failures, `syntax::test::test_pretty_print` and
+  `test_textobject_queries`); `cargo fmt --check` and `cargo clippy -p
+  helix-core` clean.
+
+Closes #16443
+---
+ helix-core/src/transaction.rs | 41 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/helix-core/src/transaction.rs b/helix-core/src/transaction.rs
+index 5e71fcd001a7..b7ccab595dbd 100644
+--- a/helix-core/src/transaction.rs
++++ b/helix-core/src/transaction.rs
+@@ -722,12 +722,12 @@ impl Transaction {
+         let process_change = |change_start, change_end, (idx, range): (usize, &Range)| {
+             // update the primary idx
+             if idx == selection.primary_index() {
+-                new_primary_idx = Some(idx);
++                new_primary_idx = Some(ranges.len());
+             } else if new_primary_idx.is_none() {
+                 if idx > selection.primary_index() {
+                     new_primary_idx = last_selection_idx;
+                 } else {
+-                    last_selection_idx = Some(idx);
++                    last_selection_idx = Some(ranges.len());
+                 }
+             }
+             ranges.push(*range);
+@@ -1183,4 +1183,41 @@ mod test {
+         assert_eq!(changes.changes, &[Insert(TEST_CASE.into())]);
+         assert_eq!(changes.len_after, TEST_CASE.chars().count());
+     }
++
++    #[test]
++    fn change_by_selection_ignore_overlapping_primary() {
++        // The range before the primary overlaps the first change and is dropped: the primary
++        // index must count the kept ranges.
++        let doc = Rope::from("0123456789abc");
++        for (ranges, primary) in [
++            (
++                crate::smallvec![Range::new(0, 1), Range::new(2, 3), Range::new(4, 5)],
++                2,
++            ),
++            (
++                crate::smallvec![
++                    Range::new(0, 1),
++                    Range::new(2, 3),
++                    Range::new(4, 5),
++                    Range::new(6, 7)
++                ],
++                2,
++            ),
++        ] {
++            let selection = Selection::new(ranges, primary);
++            let (_, new_selection) = Transaction::change_by_selection_ignore_overlapping(
++                &doc,
++                &selection,
++                |range| {
++                    if range.from() == 0 {
++                        (0, 3)
++                    } else {
++                        (range.from(), range.to())
++                    }
++                },
++                |_, _| None,
++            );
++            assert_eq!(new_selection.primary(), selection.primary());
++        }
++    }
+ }
