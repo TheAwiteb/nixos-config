@@ -15,6 +15,7 @@ let
     ./patches/16455-prevent-selection-underflow-after-prior-deletion.patch # Grabbed on 2026-11-13
     ./patches/16450-sort-deletions-before-merging.patch                    # Grabbed on 2026-11-13
     ./patches/16451-count-kept-ranges-for-the-new-primary-index.patch      # Grabbed on 2026-11-13
+    ./patches/16454-restart-position-mapping-when-input-is-unsorted.patch  # Grabbed on 2026-11-13
   ];
   /*nixfmt:enable*/
 
