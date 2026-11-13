@@ -9,6 +9,7 @@ let
   ];
   helixPatches = [
     ./patches/14795-ensure-cursor-is-in-view-after-LSP-jump-commands.patch
+    ./patches/16070-clear-document-diagnostics-when-lsp-restart.patch
   ];
 
   # Helix calls `rustPlatform.buildRustPackage` and passes it a function that
