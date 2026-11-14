@@ -77,6 +77,7 @@ in
       bufferline = "always";
       mouse = false;
       rainbow-brackets = true;
+      true-color = true;
     };
 
     editor.inline-diagnostics.cursor-line = "hint";
