@@ -46,6 +46,7 @@
       element-desktop
       fastfetch
       flatpak-builder
+      gitui
       gnome-tweaks
       gnomeExtensions.blur-my-shell
       gnomeExtensions.open-bar

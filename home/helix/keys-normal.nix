@@ -31,6 +31,15 @@
         ":redraw"
         ":reload-all"
       ];
+      # Open gitui
+      g = [
+        ":write-all"
+        ":new"
+        ":insert-output gitui >/dev/tty"
+        ":buffer-close!"
+        ":redraw"
+        ":reload-all"
+      ];
     };
 
     # Text case changer, by ccase <https://github.com/rutrum/ccase>
