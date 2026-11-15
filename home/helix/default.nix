@@ -70,7 +70,6 @@ in
       end-of-line-diagnostics = "hint";
       cursorline = true;
       color-modes = true;
-      indent-guides.render = true;
       line-number = "relative";
       scroll-lines = 6;
       trim-trailing-whitespace = true;
@@ -85,14 +84,17 @@ in
     editor.statusline = {
       left = [
         "mode"
-        "total-line-numbers"
+        "spacer"
         "version-control"
         "file-name"
+        "total-line-numbers"
         "file-modification-indicator"
       ];
       right = [
         "diagnostics"
         "workspace-diagnostics"
+        "read-only-indicator"
+        "primary-selection-length"
         "selections"
         "position"
         "file-encoding"
@@ -114,6 +116,11 @@ in
       newline = "none";
       space = "all";
       tab = "all";
+    };
+
+    editor.indent-guides = {
+      render = true;
+      character = "┊"; # Some characters that work well: "▏", "┆", "╎", "⸽"
     };
 
     editor.file-picker = {
