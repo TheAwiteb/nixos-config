@@ -3,34 +3,64 @@
 }:
 {
   programs.helix.settings.keys.select = {
-    # Text case changer, by ccase <https://github.com/rutrum/ccase>
-    A-c = {
-      u = ":pipe ccase -t upper";
-      l = ":pipe ccase -t lower";
-      t = ":pipe ccase -t title";
-      c = ":pipe ccase -t camel";
-      p = ":pipe ccase -t pascal";
-      s = ":pipe ccase -t snake";
-      k = ":pipe ccase -t kebab";
-    };
     # Reflow the text
     A-q = [ ":reflow" ];
+
+    A-c = {
+      label = "Text case changer";
+      u = {
+        command = ":pipe ccase -t upper";
+        label = "Transform to UPPER CASE";
+      };
+      l = {
+        command = ":pipe ccase -t lower";
+        label = "Transform to lower case";
+      };
+      t = {
+        command = ":pipe ccase -t title";
+        label = "Transform to Title Case";
+      };
+      c = {
+        command = ":pipe ccase -t camel";
+        label = "Transform to camelCase";
+      };
+      p = {
+        command = ":pipe ccase -t pascal";
+        label = "Transform to PascalCase";
+      };
+      s = {
+        command = ":pipe ccase -t snake";
+        label = "Transform to snake_case";
+      };
+      k = {
+        command = ":pipe ccase -t kebab";
+        label = "Transform to kebab-case";
+      };
+    };
+
     # Goto selected file/url
     g.f = {
-      # In the current window
-      c = [ "goto_file" ];
-      # In a vertical window
-      v = [
-        "vsplit"
-        "jump_view_up"
-        "goto_file"
-      ];
-      # In a horizontal window
-      h = [
-        "hsplit"
-        "jump_view_up"
-        "goto_file"
-      ];
+      label = "Goto selected file/url";
+      c = {
+        command = [ "goto_file" ];
+        label = "Go to file/url in current window";
+      };
+      v = {
+        command = [
+          "vsplit"
+          "jump_view_up"
+          "goto_file"
+        ];
+        label = "Go to file/url in vertical split";
+      };
+      h = {
+        command = [
+          "hsplit"
+          "jump_view_up"
+          "goto_file"
+        ];
+        label = "Go to file/url in horizontal split";
+      };
     };
   };
 }
