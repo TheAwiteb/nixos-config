@@ -1,6 +1,26 @@
 {
   ...
 }:
+let
+  prettierFormatterSet = {
+    auto-format = true;
+    formatter = {
+      command = "prettier";
+      args = [
+        "--stdin-filepath"
+        "%{buffer_name}"
+      ];
+    };
+  };
+  prettierFn =
+    langName:
+    (
+      {
+        name = langName;
+      }
+      // prettierFormatterSet
+    );
+in
 {
   programs.helix.languages = {
     language-server.scls = {
@@ -20,19 +40,6 @@
     language-server.tailwindcss = {
       command = "tailwindcss-language-server";
       args = [ "--stdio" ];
-    };
-
-    language-server.tailwindcss.config.tailwindCSS = {
-      includeLanguages = {
-        rust = "html";
-      };
-      experimental = {
-        classRegex = [
-          ''class="([^"]*)"''
-          ''class=\(\s*"([^"]*)"''
-          ''class:([a-zA-Z0-9_\-:/\[\].]+)''
-        ];
-      };
     };
 
     language-server.rust-analyzer.config = {
@@ -121,14 +128,47 @@
         name = "docker-compose";
         grammar = "yaml";
       };
+      tsx = {
+        name = "tsx";
+        language-servers = [
+          "vtsls"
+          "tailwindcss"
+        ];
+      };
+      typescript = {
+        name = "typescript";
+        language-servers = [ "vtsls" ];
+      };
+      css = {
+        name = "css";
+        language-servers = [
+          "vscode-css-language-server"
+          "tailwindcss"
+        ];
+      };
+      html = {
+        name = "html";
+        language-servers = [
+          "vscode-html-language-server"
+          "tailwindcss"
+        ];
+      };
     in
     [
+      (prettierFn "javascript")
+      (prettierFn "json")
+    ]
+    ++ [
+      (css // prettierFormatterSet)
       docker-compose
+      (html // prettierFormatterSet)
       markdown
       nix
       protobuf
       rhai
       rust
       toml
+      (tsx // prettierFormatterSet)
+      (typescript // prettierFormatterSet)
     ];
 }
