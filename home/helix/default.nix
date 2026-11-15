@@ -64,7 +64,7 @@ in
     package = helixPatched;
   };
   programs.helix.settings = {
-    theme = "doom-updated"; # Custom theme in ./themes/doom-updated.nix
+    theme = "catppuccin_mocha_updated"; # Custom theme in ./themes/
 
     editor = {
       end-of-line-diagnostics = "hint";
