@@ -55,6 +55,15 @@
 
     space.i = ":toggle-option lsp.display-inlay-hints";
 
+    # Replace `g+n` and `g+p` with `space+]` and `space+[`
+    g.n = "no_op";
+    g.p = "no_op";
+    space."]" = "goto_next_buffer";
+    space."[" = "goto_previous_buffer";
+
+    # `space + '` to close a buffer
+    space."'" = ":buffer-close";
+
     # Goto declaration
     g.D = {
       # In the current window
