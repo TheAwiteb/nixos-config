@@ -2,7 +2,7 @@
 {
   programs.kitty = {
     enable = true;
-    themeFile = "Catppuccin-Mocha";
+    themeFile = "Tango_Dark";
     enableGitIntegration = true;
     shellIntegration = {
       enableZshIntegration = true;
