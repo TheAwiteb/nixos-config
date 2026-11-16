@@ -15,7 +15,7 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
     helix = {
-      url = "github:helix-editor/helix/a714a818a3a4f6dd5aad3b003a78692f90a1703f";
+      url = "github:helix-editor/helix/49986e6674e5658164a88f599ec8c822e62ad0db";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
       inputs.rust-overlay.follows = "rust-overlay";
     };
