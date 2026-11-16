@@ -84,9 +84,9 @@
       # Block color used for rendered indentation/whitespace
       whitespace-bg = "#303030";
       # Background for search/match highlights
-      highlight-bg = "#0A0A0A";
+      highlight-bg = "#020044";
       # Background for visual selections
-      selection-bg = "#050433";
+      selection-bg = "#434188";
       # Background for the cursor line
       cursorline-bg = "#010021";
       # Background for UI edges (bufferline, statusline, window separators)
