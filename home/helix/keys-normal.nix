@@ -47,6 +47,51 @@
       };
     };
 
+    # Git blame
+    space.l =
+      let
+        hash = "git blame -L %{cursor_line},%{cursor_line} --porcelain '%{buffer_name}' | awk 'NR==1{print $1}'";
+        wlCopyCmd = "printf '%%s' \"$out\" | wl-copy -n --type text/plain > /dev/null 2>&1";
+
+        # Copy stdout to the clipboard, then report in the statusline.
+        copy = desc: cmd: ":echo %sh(out=$(${cmd}); ${wlCopyCmd}; printf '%%s' \"Copied ${desc}: $out\")";
+      in
+      {
+        label = "Git blame operations";
+        b = {
+          label = "Show line blame on screen";
+          command = ":sh git blame -L %{cursor_line},%{cursor_line} '%{buffer_name}'";
+        };
+        c = {
+          label = "Copy short commit id";
+          command = copy "short commit id" "git rev-parse --short $(${hash})";
+        };
+        C = {
+          label = "Copy full commit id";
+          command = copy "full commit id" hash;
+        };
+        e = {
+          label = "Copy author email";
+          command = copy "author email" "git log -1 --format=%%ae $(${hash})";
+        };
+        n = {
+          label = "Copy author name";
+          command = copy "author name" "git log -1 --format=%%an $(${hash})";
+        };
+        d = {
+          label = "Copy author and date";
+          command = copy "author and date" "git log -1 --format='%%an, %%ad' --date=iso $(${hash})";
+        };
+        s = {
+          label = "Copy commit subject";
+          command = copy "commit subject" "git log -1 --format=%%s $(${hash})";
+        };
+        p = {
+          label = "Show full commit info";
+          command = ":sh git show --stat $(${hash})";
+        };
+      };
+
     # Text case changer, by ccase <https://github.com/rutrum/ccase>
     A-c = {
       label = "Text case changer";
