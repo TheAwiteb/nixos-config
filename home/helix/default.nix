@@ -86,7 +86,6 @@ in
     editor.statusline = {
       left = [
         "mode"
-        "spacer"
         "version-control"
         "file-name"
         "total-line-numbers"
@@ -102,9 +101,9 @@ in
         "file-encoding"
         "file-type"
       ];
-      mode.normal = "NOR";
-      mode.insert = "INS";
-      mode.select = "SEL";
+      mode.normal = "𝙉";
+      mode.insert = "𝙄";
+      mode.select = "𝙎";
     };
 
     editor.lsp = {
