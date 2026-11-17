@@ -46,6 +46,8 @@
     "ui.statusline.file-type"                   = { fg = "base"; bg = "pink";     modifiers = ["bold"]; };
     /*nixfmt:enable*/
 
+    "ui.breadcrumb.separator".fg = "rosewater";
+
     # Vertical/horizontal window separators
     "ui.window" = {
       fg = "edges-bg";

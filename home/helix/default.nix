@@ -82,6 +82,11 @@ in
       true-color = true;
     };
 
+    editor.breadcrumb = {
+      enable = true;
+      path = "none";
+    };
+
     editor.inline-diagnostics.cursor-line = "hint";
 
     editor.statusline = {
