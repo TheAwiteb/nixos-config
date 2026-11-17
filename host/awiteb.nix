@@ -21,6 +21,7 @@
   };
 
   environment.sessionVariables.VK_ICD_FILENAMES = "/run/opengl-driver/share/vulkan/icd.d/intel_icd.x86_64.json";
+  environment.variables.EDITOR = "hx";
   services.pcscd.enable = true;
 
   programs.xwayland.enable = false;
