@@ -18,6 +18,7 @@ let
     ./patches/16454-restart-position-mapping-when-input-is-unsorted.patch  # Grabbed on 2026-11-13
     ./patches/16412-labels-for-keymap-commands.patch                       # Grabbed on 2026-11-15
     ./patches/13666-statusline-elements-style-support.patch                # Grabbed on 2026-11-16
+    ./patches/15573-add-breadcrumb-navigation-bar.patch                    # Grabbed on 2026-11-18
   ];
   /*nixfmt:enable*/
 
