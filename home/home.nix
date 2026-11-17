@@ -50,6 +50,7 @@
       gnome-tweaks
       gnomeExtensions.blur-my-shell
       gnomeExtensions.open-bar
+      gnomeExtensions.resource-monitor
       htop
       jq
       lazpaint

@@ -142,9 +142,10 @@ with lib.hm.gvariant;
       always-show-log-out = true;
       disable-user-extensions = false;
       disable-extension-version-validation = true;
-      enabled-extensions = [
-        pkgs.gnomeExtensions.open-bar.extensionUuid
-        pkgs.gnomeExtensions.blur-my-shell.extensionUuid
+      enabled-extensions = with pkgs; [
+        gnomeExtensions.open-bar.extensionUuid
+        gnomeExtensions.blur-my-shell.extensionUuid
+        gnomeExtensions.resource-monitor.extensionUuid
       ];
       disabled-extensions = [ ];
       favorite-apps = [
