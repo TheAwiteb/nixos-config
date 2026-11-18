@@ -19,6 +19,7 @@ let
     ./patches/16412-labels-for-keymap-commands.patch                       # Grabbed on 2026-11-15
     ./patches/13666-statusline-elements-style-support.patch                # Grabbed on 2026-11-16
     ./patches/15573-add-breadcrumb-navigation-bar.patch                    # Grabbed on 2026-11-18
+    ./patches/12369-add-support-for-basic-icons.patch                      # Grabbed on 2026-11-18
   ];
   /*nixfmt:enable*/
 
@@ -35,8 +36,21 @@ let
       helixFn:
       let
         helixSet = (helixFn null);
+        # Collect the patches that Helix upstream already declares plus our own
+        patches = (helixSet.patches or [ ]) ++ helixPatches;
+        # Patch the upstream `Cargo.lock` so it matches the patched sources
+        patchedLockFile = pkgs.runCommand "Cargo.lock" { } ''
+          cp ${helixSet.cargoLock.lockFile} Cargo.lock
+          chmod +w Cargo.lock
+          ${pkgs.lib.concatMapStringsSep "\n" (p: "patch -p1 -f < ${p} || true") patches}
+          cp Cargo.lock $out
+        '';
         patchedSet = helixSet // {
-          patches = (helixSet.patches or [ ]) ++ helixPatches;
+          patches = patches;
+          cargoLock = helixSet.cargoLock // {
+            # Point the build at our locally patched copy of `Cargo.lock`
+            lockFile = patchedLockFile;
+          };
         };
       in
       pkgs.rustPlatform.buildRustPackage (_: patchedSet);
@@ -68,6 +82,12 @@ in
   };
   programs.helix.settings = {
     theme = "catppuccin_mocha_updated"; # Custom theme in ./themes/
+
+    icons = {
+      fs.enable = true;
+      vcs.enable = true;
+      kind.enable = true;
+    };
 
     editor = {
       end-of-line-diagnostics = "hint";
