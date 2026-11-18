@@ -21,6 +21,7 @@ let
     ./patches/15573-add-breadcrumb-navigation-bar.patch                    # Grabbed on 2026-11-18
     ./patches/12369-add-support-for-basic-icons.patch                      # Grabbed on 2026-11-18
     ./patches/add-icons-to-breadcrumb-navigation-bar.patch                 # <https://github.com/RoloEdits/helix/commit/fbf1e42689d53fd42e789461dcd063516b05ec27>
+    ./patches/fix-bufferline-padding.patch                                 # Custom
   ];
   /*nixfmt:enable*/
 

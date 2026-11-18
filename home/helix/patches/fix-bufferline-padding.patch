@@ -1,0 +1,121 @@
+From 653a68b67c99fb8fa4bef411695d53a2a6aeb36b Mon Sep 17 00:00:00 2001
+From: Awiteb <a@4rs.nl>
+Date: Wed, 18 Nov 2026 21:09:43 +0000
+Subject: [PATCH] bufferline: fix padding
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/ui/editor.rs | 41 ++++++++++++++++++-------------------
+ helix-view/src/icons.rs     | 10 +++++++++
+ 2 files changed, 30 insertions(+), 21 deletions(-)
+
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index 9d2fc0888..bca0013f5 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -735,7 +735,7 @@ pub fn render_bufferline(editor: &Editor, viewport: Rect, surface: &mut Surface)
+                         .set_stringn(
+                             x,
+                             viewport.y,
+-                            &icon.glyph(),
++                            &icon.with_padding_left(0).glyph(),
+                             remaining as usize,
+                             icon.style(),
+                         )
+@@ -747,38 +747,37 @@ pub fn render_bufferline(editor: &Editor, viewport: Rect, surface: &mut Surface)
+                 }
+             }
+ 
++            // If it is modified, add the indicator, otherwise empty string
++            let modified = icons.ui().indicator().modified().with_no_padding().glyph();
++            let modification_indicator = if doc.is_modified() {
++                modified.as_str()
++            } else {
++                " "
++            };
++
+             // PERF:
+             // Rather than using `format!{"{name} "}`, we can save an allocation.
+-            for element in [name, " "] {
++            for (idx, element) in [name, modification_indicator, "  "].iter().enumerate() {
+                 let used = viewport.x.saturating_sub(x);
+                 let remaining = surface.area.width.saturating_sub(used);
+ 
++                // Style for the modification indicator
++                let style = if idx == 1 {
++                    theme
++                        .try_get_exact("ui.statusline.file-modification-indicator")
++                        .unwrap_or(base)
++                } else {
++                    base
++                };
++
+                 x = surface
+-                    .set_stringn(x, viewport.y, element, remaining as usize, base)
++                    .set_stringn(x, viewport.y, element, remaining as usize, style)
+                     .0;
+ 
+                 if x >= surface.area.right() {
+                     break;
+                 }
+             }
+-
+-            if doc.is_modified() {
+-                let modified = icons.ui().indicator().modified();
+-                // PERF:
+-                // Rather than using `format!{"{name} "}`, we can save an allocation.
+-                for element in [modified.glyph().as_str(), " "] {
+-                    let used = viewport.x.saturating_sub(x);
+-                    let remaining = surface.area.width.saturating_sub(used);
+-
+-                    x = surface
+-                        .set_stringn(x, viewport.y, element, remaining as usize, base)
+-                        .0;
+-
+-                    if x >= surface.area.right() {
+-                        break;
+-                    }
+-                }
+-            }
+         }
+     }
+ 
+diff --git a/helix-view/src/icons.rs b/helix-view/src/icons.rs
+index a84a612df..dab4dc4ea 100644
+--- a/helix-view/src/icons.rs
++++ b/helix-view/src/icons.rs
+@@ -200,6 +200,16 @@ pub const fn with_padding(mut self, left: u8, right: u8) -> Self {
+         self
+     }
+ 
++    #[inline]
++    #[must_use]
++    pub fn with_padding_left(mut self, left: u8) -> Self {
++        self.padding = Some(Padding {
++            left,
++            right: self.padding.map(|p| p.right).unwrap_or_default(),
++        });
++        self
++    }
++
+     #[inline]
+     #[must_use]
+     pub const fn with_no_padding(self) -> Self {
+
+base-commit: 49986e6674e5658164a88f599ec8c822e62ad0db
+prerequisite-patch-id: 5636a0ec709859fdc00e9d96afbdeb9add6aea80
+prerequisite-patch-id: fd9dab7c8340c011ec136b81b7cce303041a9a65
+prerequisite-patch-id: 6de9c7713b5994bc7e5ae94d05eaac01e10f4d96
+prerequisite-patch-id: 5c635688280738885ab2e2cd3daa71849e70d068
+prerequisite-patch-id: 0a6a127e2682d158a68382f9f231ccef3d459fcf
+prerequisite-patch-id: 61d3a301c577ffd32bc425c4368c36a3a890d57a
+prerequisite-patch-id: 4aebaf0cdfb0b8494819c80c9712ae87ce1f1d7c
+prerequisite-patch-id: d8799e4571538b7128cc6ebbabcd9046fae2da04
+prerequisite-patch-id: a4acc9b80f129a5d5eda84a032c48555a5371d1c
+prerequisite-patch-id: 7d77cbb98505f9602fa4c8cf5e6e120870c0c884
+prerequisite-patch-id: 31b8d970943a0a0ea10a5a3ca63ef1a9d8ddf837
+prerequisite-patch-id: 78097c839b2ddf52eb4d65774ae6fe92bac23775
+prerequisite-patch-id: 9b9c283191e9bb57ecdc32822e353de94dd18d2f
+-- 
+2.55.0
+
