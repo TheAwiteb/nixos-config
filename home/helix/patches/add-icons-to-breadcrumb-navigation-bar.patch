@@ -1,0 +1,133 @@
+From 08757f1cfdbea95d3149e62fb0c73babc05ce39c Mon Sep 17 00:00:00 2001
+From: Awiteb <a@4rs.nl>
+Date: Wed, 18 Nov 2026 19:50:51 +0000
+Subject: [PATCH] feat: add icons to breadcrumb navigation bar
+
+Based-on: https://github.com/RoloEdits/helix/commit/fbf1e42689d53fd42e789461dcd063516b05ec27
+Co-authored-by: Rolo <RoloEdits@gmail.com>
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/ui/editor.rs | 49 ++++++++++++++++++++++++++++++++++---
+ helix-view/src/icons.rs     |  4 +--
+ 2 files changed, 48 insertions(+), 5 deletions(-)
+
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index 9ea966259..9d2fc0888 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -23,6 +23,7 @@
+     visual_offset_from_block, Change, Position, Range, Selection, Transaction,
+ };
+ use helix_lsp::lsp::SymbolKind;
++use helix_stdx::stack_format;
+ use helix_view::{
+     annotations::diagnostics::DiagnosticFilter,
+     document::{Mode, SCRATCH_BUFFER_NAME},
+@@ -807,7 +808,8 @@ fn draw_element(
+         }
+ 
+         let config = editor.config();
+-
++        let theme = editor.theme.as_ref();
++        let icons = ICONS.load();
+         let style = editor
+             .theme
+             .try_get_exact("ui.breadcrumb")
+@@ -849,6 +851,33 @@ fn draw_element(
+                     let segment = component.as_os_str().to_string_lossy();
+                     let is_directory = components.peek().is_some();
+ 
++                    if !is_directory {
++                        if let Some(icon) = icons
++                            .fs()
++                            .file()
++                            .and_then(|files| files.get(segment.as_ref()))
++                        {
++                            let style = theme
++                                .try_get_exact(format!("icons.file.{segment}").as_str())
++                                .or_else(|| {
++                                    path.extension().map(|ext| ext.display()).and_then(|ext| {
++                                        theme.try_get_exact(
++                                            stack_format!("icons.file.{ext}").as_str(),
++                                        )
++                                    })
++                                })
++                                .unwrap_or_else(|| icon.style());
++
++                            x = draw_element(
++                                surface,
++                                viewport,
++                                x,
++                                icon.with_padding(0, 2).glyph().as_str(),
++                                style,
++                            );
++                        }
++                    }
++
+                     let style = if is_directory {
+                         editor.theme.get("ui.text.directory")
+                     } else {
+@@ -869,7 +898,7 @@ fn draw_element(
+                     draw_separator = true;
+                 }
+ 
+-                let style = match symbol.kind {
++                let symbol_style = match symbol.kind {
+                     SymbolKind::MODULE
+                     | SymbolKind::NAMESPACE
+                     | SymbolKind::PACKAGE => editor.theme.get("namespace"),
+@@ -902,7 +931,21 @@ fn draw_element(
+                     _ => style,
+                 };
+ 
+-                x = draw_element(surface, viewport, x, symbol.name.as_ref(), style);
++                let kind = symbol.kind.as_str();
++                let icon_style = editor
++                    .theme
++                    .try_get_exact(stack_format!("icons.kind.{kind}").as_str())
++                    .unwrap_or(symbol_style);
++                if let Some(icon) = icons.kind().get(kind) {
++                    x = draw_element(
++                        surface,
++                        viewport,
++                        x,
++                        icon.with_padding(0, 2).glyph().as_str(),
++                        icon_style,
++                    );
++                }
++                x = draw_element(surface, viewport, x, symbol.name.as_ref(), symbol_style);
+             }
+         }
+     }
+diff --git a/helix-view/src/icons.rs b/helix-view/src/icons.rs
+index 323cb2eeb..a84a612df 100644
+--- a/helix-view/src/icons.rs
++++ b/helix-view/src/icons.rs
+@@ -1648,8 +1648,8 @@ pub fn readonly(&self) -> Icon {
+     #[inline]
+     #[must_use]
+     pub fn modified(&self) -> Icon {
+-        // TODO: ●?
+-        self.modified.unwrap_or_else(|| icon!("[+]"))
++        self.modified
++            .unwrap_or_else(|| icon!(glyph: "●", padding: [1, 1]))
+     }
+ 
+     #[inline]
+
+base-commit: 49986e6674e5658164a88f599ec8c822e62ad0db
+prerequisite-patch-id: 5636a0ec709859fdc00e9d96afbdeb9add6aea80
+prerequisite-patch-id: fd9dab7c8340c011ec136b81b7cce303041a9a65
+prerequisite-patch-id: 6de9c7713b5994bc7e5ae94d05eaac01e10f4d96
+prerequisite-patch-id: 5c635688280738885ab2e2cd3daa71849e70d068
+prerequisite-patch-id: 0a6a127e2682d158a68382f9f231ccef3d459fcf
+prerequisite-patch-id: 61d3a301c577ffd32bc425c4368c36a3a890d57a
+prerequisite-patch-id: 4aebaf0cdfb0b8494819c80c9712ae87ce1f1d7c
+prerequisite-patch-id: d8799e4571538b7128cc6ebbabcd9046fae2da04
+prerequisite-patch-id: a4acc9b80f129a5d5eda84a032c48555a5371d1c
+prerequisite-patch-id: 7d77cbb98505f9602fa4c8cf5e6e120870c0c884
+prerequisite-patch-id: 31b8d970943a0a0ea10a5a3ca63ef1a9d8ddf837
+prerequisite-patch-id: 78097c839b2ddf52eb4d65774ae6fe92bac23775
+-- 
+2.55.0
+
