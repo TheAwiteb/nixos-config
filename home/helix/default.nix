@@ -121,6 +121,7 @@ in
       ];
       right = [
         "diagnostics"
+        "spacer"
         "workspace-diagnostics"
         "read-only-indicator"
         "primary-selection-length"
