@@ -34,10 +34,10 @@
     # Background color for each statusline element.
     "ui.statusline.version-control"             = { fg = "base"; bg = "green";    modifiers = ["bold"]; };
     "ui.statusline.file-name"                   = { fg = "base"; bg = "lavender"; modifiers = ["bold"]; };
-    "ui.statusline.total-line-numbers"          = { fg = "base"; bg = "sapphire"; modifiers = ["bold"]; };
+    "ui.statusline.total-line-numbers"          = { fg = "base"; bg = "peach"; modifiers = ["bold"]; };
     "ui.statusline.file-modification-indicator" = { fg = "base"; bg = "sky";      modifiers = ["bold"]; };
-    "ui.statusline.diagnostics"                 = { fg = "base"; bg = "peach";    modifiers = ["bold"]; };
-    "ui.statusline.workspace-diagnostics"       = { fg = "base"; bg = "yellow";   modifiers = ["bold"]; };
+    "ui.statusline.diagnostics"                 = { fg = "base"; bg = "sapphire";    modifiers = ["bold"]; };
+    "ui.statusline.workspace-diagnostics"       = { fg = "base"; bg = "sapphire";   modifiers = ["bold"]; };
     "ui.statusline.read-only-indicator"         = { fg = "base"; bg = "maroon";   modifiers = ["bold"]; };
     "ui.statusline.primary-selection-length"    = { fg = "base"; bg = "blue";     modifiers = ["bold"]; };
     "ui.statusline.selections"                  = { fg = "base"; bg = "teal";     modifiers = ["bold"]; };
