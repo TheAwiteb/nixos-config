@@ -1,0 +1,326 @@
+From 2cd6cf3e1bf7c2a2f972e24018bda2a44592bd9b Mon Sep 17 00:00:00 2001
+From: Awiteb <a@4rs.nl>
+Date: Thu, 19 Nov 2026 10:46:57 +0000
+Subject: [PATCH] feat: style icons and kinds in completion menu
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-lsp-types/src/lib.rs      | 65 ++++++++++++++++++++++++++++++++-
+ helix-term/src/ui/completion.rs | 62 +++++++++++++++++++------------
+ helix-term/src/ui/editor.rs     | 37 +++----------------
+ helix-term/src/ui/menu.rs       | 18 +++++++--
+ helix-tui/src/widgets/table.rs  |  2 +-
+ helix-view/src/icons.rs         |  2 +-
+ 6 files changed, 124 insertions(+), 62 deletions(-)
+
+diff --git a/helix-lsp-types/src/lib.rs b/helix-lsp-types/src/lib.rs
+index 0c233743f..78ebe86da 100644
+--- a/helix-lsp-types/src/lib.rs
++++ b/helix-lsp-types/src/lib.rs
+@@ -19,7 +19,7 @@
+ 
+ use bitflags::bitflags;
+ 
+-use std::{collections::HashMap, fmt::Debug};
++use std::{collections::HashMap, fmt::Debug, str::FromStr};
+ 
+ pub use helix_stdx::Url;
+ use serde::{de, de::Error as Error_, Deserialize, Serialize};
+@@ -1273,6 +1273,43 @@ impl SymbolKind {
+ }
+ }
+ 
++impl FromStr for SymbolKind {
++    type Err = ();
++
++    #[inline]
++    fn from_str(s: &str) -> Result<Self, Self::Err> {
++        match s {
++            "file" => Ok(Self::FILE),
++            "module" => Ok(Self::MODULE),
++            "namespace" => Ok(Self::NAMESPACE),
++            "package" => Ok(Self::PACKAGE),
++            "class" => Ok(Self::CLASS),
++            "method" => Ok(Self::METHOD),
++            "property" => Ok(Self::PROPERTY),
++            "field" => Ok(Self::FIELD),
++            "construct" => Ok(Self::CONSTRUCTOR),
++            "enum" => Ok(Self::ENUM),
++            "interface" => Ok(Self::INTERFACE),
++            "function" => Ok(Self::FUNCTION),
++            "variable" => Ok(Self::VARIABLE),
++            "constant" => Ok(Self::CONSTANT),
++            "string" => Ok(Self::STRING),
++            "number" => Ok(Self::NUMBER),
++            "boolean" => Ok(Self::BOOLEAN),
++            "array" => Ok(Self::ARRAY),
++            "object" => Ok(Self::OBJECT),
++            "key" => Ok(Self::KEY),
++            "null" => Ok(Self::NULL),
++            "enum_member" => Ok(Self::ENUM_MEMBER),
++            "struct" => Ok(Self::STRUCT),
++            "event" => Ok(Self::EVENT),
++            "operator" => Ok(Self::OPERATOR),
++            "type_param" => Ok(Self::TYPE_PARAMETER),
++            _ => Err(()),
++        }
++    }
++}
++
+ impl SymbolKind {
+     pub fn all() -> Vec<Self> {
+         (1..=26).map(Self).collect()
+@@ -1313,6 +1350,32 @@ pub const fn as_str(self) -> &'static str {
+             _ => "",
+         }
+     }
++
++    /// Maps this symbol kind to a syntax-highlighting style name.
++    /// Returns `None` for kinds without a canonical style (e.g. `FILE`).
++    #[inline]
++    pub const fn style_name(&self) -> Option<&'static str> {
++        match *self {
++            Self::MODULE | Self::NAMESPACE | Self::PACKAGE => Some("namespace"),
++            Self::OBJECT | Self::STRUCT | Self::INTERFACE | Self::CLASS => Some("type"),
++            Self::METHOD => Some("function.method"),
++            Self::FUNCTION => Some("function"),
++            Self::ENUM => Some("type.enum"),
++            Self::ENUM_MEMBER => Some("type.enum.variant"),
++            Self::FIELD | Self::PROPERTY => Some("variable.other.member"),
++            Self::VARIABLE => Some("variable"),
++            Self::CONSTANT => Some("constant"),
++            Self::CONSTRUCTOR => Some("constructor"),
++            Self::STRING => Some("string"),
++            Self::NUMBER => Some("constant.numeric"),
++            Self::BOOLEAN => Some("constant.builtin.boolean"),
++            Self::ARRAY => Some("punctuation.bracket"),
++            Self::KEY => Some("label"),
++            Self::NULL => Some("constant.builtin"),
++            Self::TYPE_PARAMETER => Some("type.parameter"),
++            _ => None,
++        }
++    }
+ }
+ 
+ /// Specific capabilities for the `SymbolKind` in the `workspace/symbol` request.
+diff --git a/helix-term/src/ui/completion.rs b/helix-term/src/ui/completion.rs
+index 2c1af5224..427b59c68 100644
+--- a/helix-term/src/ui/completion.rs
++++ b/helix-term/src/ui/completion.rs
+@@ -8,6 +8,7 @@
+ };
+ use helix_core::snippets::{ActiveSnippet, RenderedSnippet, Snippet};
+ use helix_core::{self as core, chars, fuzzy::MATCHER, Change, Transaction};
++use helix_lsp::lsp::SymbolKind;
+ use helix_lsp::{lsp, util, OffsetEncoding};
+ use helix_stdx::stack_format;
+ use helix_view::icons::ICONS;
+@@ -26,6 +27,7 @@
+ use tui::{buffer::Buffer as Surface, text::Span};
+ 
+ use std::cmp::Reverse;
++use std::str::FromStr;
+ use std::sync::Arc;
+ 
+ impl menu::Item for CompletionItem {
+@@ -90,27 +92,32 @@ fn format(&self, theme: &Self::Data) -> menu::Row<'_> {
+         let name = &kind.content;
+         let is_folder = kind.content == "folder";
+ 
+-        let label = Span::styled(
+-            label,
+-            if deprecated {
+-                Style::default().add_modifier(Modifier::CROSSED_OUT)
+-            } else if is_folder {
+-                theme.get("ui.text.directory")
+-            } else {
+-                Style::default()
+-            },
+-        );
+-
+-        if let Some(color) = color {
+-            menu::Row::new([
+-                menu::Cell::from(Span::styled(icons.kind().color().to_string(), color)),
+-                menu::Cell::from(label),
+-                menu::Cell::from(kind),
+-            ])
+-        } else if let Some(icon) = icons.kind().get(name) {
++        let label_style = if deprecated {
++            Style::default()
++                .fg(theme
++                    .try_get_exact("warning")
++                    .unwrap_or_default()
++                    .fg
++                    .unwrap_or(Color::Yellow))
++                .add_modifier(Modifier::CROSSED_OUT)
++        } else if is_folder {
++            theme.get("ui.text.directory")
++        } else {
++            Style::default()
++        };
++        let symbol_style = SymbolKind::from_str(name)
++            .ok()
++            .as_ref()
++            .and_then(SymbolKind::style_name)
++            .and_then(|style_name| theme.try_get(style_name))
++            .unwrap_or_else(Style::default);
++
++        // fall back to the LSP color when the icon has no themed color
++        if let Some(icon) = icons.kind().get(name) {
+             let style = theme
+                 .try_get_exact(&stack_format!("icons.kind.{name}"))
+-                .unwrap_or_else(|| icon.style());
++                .or(icon.style)
++                .unwrap_or(symbol_style);
+ 
+             menu::Row::new([
+                 // NOTE:
+@@ -119,12 +126,21 @@ fn format(&self, theme: &Self::Data) -> menu::Row<'_> {
+                 // correctly, we pad the right still, leaving a space between the icon
+                 // and the contents; Some terminals render an icon a different width
+                 // depending on if there is a space or not.
+-                menu::Cell::from(Span::styled(icon.with_padding(0, 1).to_string(), style)),
+-                menu::Cell::from(label),
+-                menu::Cell::from(kind),
++                menu::Cell::from(icon.with_padding(0, 1).to_string()).style(style),
++                menu::Cell::from(label).style(label_style),
++                menu::Cell::from(kind.content).style(style),
++            ])
++        } else if let Some(color) = color {
++            menu::Row::new([
++                menu::Cell::from(icons.kind().color().to_string()).style(color.into()),
++                menu::Cell::from(label).style(label_style),
++                menu::Cell::from(kind).style(symbol_style),
+             ])
+         } else {
+-            menu::Row::new([menu::Cell::from(label), menu::Cell::from(kind)])
++            menu::Row::new([
++                menu::Cell::from(label).style(label_style),
++                menu::Cell::from(kind).style(symbol_style),
++            ])
+         }
+     }
+ }
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index bca0013f5..4b9190670 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -897,38 +897,11 @@ fn draw_element(
+                     draw_separator = true;
+                 }
+ 
+-                let symbol_style = match symbol.kind {
+-                    SymbolKind::MODULE
+-                    | SymbolKind::NAMESPACE
+-                    | SymbolKind::PACKAGE => editor.theme.get("namespace"),
+-
+-                    SymbolKind::OBJECT // impl Block
+-                    | SymbolKind::STRUCT
+-                    | SymbolKind::INTERFACE
+-                    | SymbolKind::CLASS => editor.theme.get("type"),
+-
+-                    SymbolKind::METHOD => editor.theme.get("function.method"),
+-                    SymbolKind::FUNCTION => editor.theme.get("function"),
+-
+-                    SymbolKind::ENUM => editor.theme.get("type.enum"),
+-                    SymbolKind::ENUM_MEMBER => editor.theme.get("type.enum.variant"),
+-
+-                   SymbolKind::FIELD | SymbolKind::PROPERTY => {
+-                        editor.theme.get("variable.other.member")
+-                    }
+-
+-                    SymbolKind::VARIABLE => editor.theme.get("variable"),
+-                    SymbolKind::CONSTANT => editor.theme.get("constant"),
+-                    SymbolKind::CONSTRUCTOR => editor.theme.get("constructor"),
+-                    SymbolKind::STRING => editor.theme.get("string"),
+-                    SymbolKind::NUMBER => editor.theme.get("constant.numeric"),
+-                    SymbolKind::BOOLEAN => editor.theme.get("constant.builtin.boolean"),
+-                    SymbolKind::ARRAY => editor.theme.get("punctuation.bracket"),
+-                    SymbolKind::KEY => editor.theme.get("label"),
+-                    SymbolKind::NULL => editor.theme.get("constant.builtin"),
+-                    SymbolKind::TYPE_PARAMETER => editor.theme.get("type.parameter"),
+-                    _ => style,
+-                };
++                let symbol_style = symbol
++                    .kind
++                    .style_name()
++                    .and_then(|n| theme.try_get(n))
++                    .unwrap_or(style);
+ 
+                 let kind = symbol.kind.as_str();
+                 let icon_style = editor
+diff --git a/helix-term/src/ui/menu.rs b/helix-term/src/ui/menu.rs
+index 99e8ee449..755e1e094 100644
+--- a/helix-term/src/ui/menu.rs
++++ b/helix-term/src/ui/menu.rs
+@@ -356,11 +356,21 @@ fn render(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context) {
+ 
+         let win_height = area.height as usize;
+ 
+-        let rows = options
+-            .iter()
+-            .map(|option| option.format(&self.editor_data));
++        // Take the cell modifiers and fg color, but preserve the existing bg color
++        let rows = options.iter().map(|option| {
++            let mut row = option.format(&self.editor_data);
++            for cell in &mut row.cells {
++                let mut style = style;
++                if let Some(fg) = cell.style.fg {
++                    style = style.fg(fg);
++                };
++                style = style.add_modifier(cell.style.add_modifier);
++                cell.set_style(style);
++            }
++            row
++        });
++
+         let table = Table::new(rows)
+-            .style(style)
+             .highlight_style(selected)
+             .column_spacing(1)
+             .widths(&self.widths);
+diff --git a/helix-tui/src/widgets/table.rs b/helix-tui/src/widgets/table.rs
+index 5f4667b7c..f8b733e2f 100644
+--- a/helix-tui/src/widgets/table.rs
++++ b/helix-tui/src/widgets/table.rs
+@@ -31,7 +31,7 @@
+ #[derive(Debug, Clone, PartialEq, Eq, Default)]
+ pub struct Cell<'a> {
+     pub content: Text<'a>,
+-    style: Style,
++    pub style: Style,
+ }
+ 
+ impl Cell<'_> {
+diff --git a/helix-view/src/icons.rs b/helix-view/src/icons.rs
+index dab4dc4ea..9e8356420 100644
+--- a/helix-view/src/icons.rs
++++ b/helix-view/src/icons.rs
+@@ -134,7 +134,7 @@ macro_rules! icons {
+ #[derive(Debug, Default, Eq, Clone, Copy)]
+ pub struct Icon {
+     glyph: Option<StackString>,
+-    style: Option<Style>,
++    pub style: Option<Style>,
+     padding: Option<Padding>,
+     is_user_overridden: bool,
+ }
+
+base-commit: 49986e6674e5658164a88f599ec8c822e62ad0db
+prerequisite-patch-id: 5636a0ec709859fdc00e9d96afbdeb9add6aea80
+prerequisite-patch-id: fd9dab7c8340c011ec136b81b7cce303041a9a65
+prerequisite-patch-id: 6de9c7713b5994bc7e5ae94d05eaac01e10f4d96
+prerequisite-patch-id: 5c635688280738885ab2e2cd3daa71849e70d068
+prerequisite-patch-id: 0a6a127e2682d158a68382f9f231ccef3d459fcf
+prerequisite-patch-id: 61d3a301c577ffd32bc425c4368c36a3a890d57a
+prerequisite-patch-id: 4aebaf0cdfb0b8494819c80c9712ae87ce1f1d7c
+prerequisite-patch-id: d8799e4571538b7128cc6ebbabcd9046fae2da04
+prerequisite-patch-id: a4acc9b80f129a5d5eda84a032c48555a5371d1c
+prerequisite-patch-id: 7d77cbb98505f9602fa4c8cf5e6e120870c0c884
+prerequisite-patch-id: 31b8d970943a0a0ea10a5a3ca63ef1a9d8ddf837
+prerequisite-patch-id: 0efaaf6803628d078d2ffb43a91c4d460ef52abc
+prerequisite-patch-id: 9b9c283191e9bb57ecdc32822e353de94dd18d2f
+prerequisite-patch-id: 98ae7244bb5d2a6a0762a4763964c96d6dcb23db
+-- 
+2.55.0
+

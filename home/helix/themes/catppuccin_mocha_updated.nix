@@ -85,6 +85,10 @@
       fg = "overlay2";
       bg = "menus-bg";
     };
+    "ui.menu.selected" = {
+      bg = "surface1";
+      modifiers = [ "bold" ];
+    };
 
     palette = {
       # Deep black main editor background
