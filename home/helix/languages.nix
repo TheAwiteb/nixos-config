@@ -67,7 +67,6 @@ in
         name = "rust";
         language-servers = [
           "scls"
-          "tailwindcss"
           "rust-analyzer"
         ];
         auto-pairs = {
