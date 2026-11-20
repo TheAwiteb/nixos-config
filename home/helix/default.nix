@@ -91,6 +91,24 @@ in
       kind.enable = true;
     };
 
+    icons.fs.file.filename =
+      let
+        todoSet = {
+          glyph = "";
+          fg = "#579ff2";
+          padding = {
+            left = 0;
+            right = 2;
+          };
+        };
+      in
+      {
+        "TODO.md" = todoSet;
+        "todo.md" = todoSet;
+        "TODO" = todoSet;
+        "todo" = todoSet;
+      };
+
     editor = {
       end-of-line-diagnostics = "hint";
       cursorline = true;
