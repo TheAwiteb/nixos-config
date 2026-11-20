@@ -86,27 +86,38 @@ in
     theme = "catppuccin_mocha_updated"; # Custom theme in ./themes/
 
     icons = {
-      fs.enable = true;
       vcs.enable = true;
       kind.enable = true;
     };
 
-    icons.fs.file.filename =
+    icons.fs =
       let
-        todoSet = {
-          glyph = "";
-          fg = "#579ff2";
-          padding = {
-            left = 0;
-            right = 2;
-          };
-        };
+        padding = left: right: { inherit left right; };
+        icon = glyph: fg: padding: { inherit glyph fg padding; };
+        todoSet = icon "" "#579ff2" (padding 0 2);
+        tauriSet = icon "" "#ffc034" (padding 0 1);
+        viteSet = icon "" "#9a35ff" (padding 0 2);
+        notReactButSolidjs = icon "" "#129fee" (padding 0 2);
       in
       {
-        "TODO.md" = todoSet;
-        "todo.md" = todoSet;
-        "TODO" = todoSet;
-        "todo" = todoSet;
+        enable = true;
+
+        directory = {
+          "src-tauri" = tauriSet;
+        };
+
+        file.filename = {
+          "TODO.md" = todoSet;
+          "todo.md" = todoSet;
+          "TODO" = todoSet;
+          "todo" = todoSet;
+          "tauri.conf.json" = tauriSet;
+          "vite.config.ts" = viteSet;
+        };
+
+        file.extension = {
+          tsx = notReactButSolidjs;
+        };
       };
 
     editor = {
