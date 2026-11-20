@@ -3,6 +3,8 @@
     # Start from the upstream catppuccin_mocha theme
     inherits = "catppuccin_mocha";
 
+    "warning" = "yellow";
+
     # Virtual whitespace rendered as a dark gray block
     "ui.virtual.whitespace" = "whitespace-bg";
 
@@ -94,7 +96,7 @@
       # Deep black main editor background
       base = "#000000";
       # Background for popups, menus and help
-      menus-bg = "#080211";
+      menus-bg = "#011745";
       # Block color used for rendered indentation/whitespace
       whitespace-bg = "#303030";
       # Background for search/match highlights
