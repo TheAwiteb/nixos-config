@@ -8,23 +8,6 @@ let
     (import ./helix-perl.nix)
   ];
 
-  helixPatches = [
-    ./patches/14795-ensure-cursor-is-in-view-after-LSP-jump-commands.patch # Grabbed on 2026-11-13
-    ./patches/16070-clear-document-diagnostics-when-lsp-restart.patch # Grabbed on 2026-11-13
-    ./patches/16455-prevent-selection-underflow-after-prior-deletion.patch # Grabbed on 2026-11-13
-    ./patches/16450-sort-deletions-before-merging.patch # Grabbed on 2026-11-13
-    ./patches/16451-count-kept-ranges-for-the-new-primary-index.patch # Grabbed on 2026-11-13
-    ./patches/16454-restart-position-mapping-when-input-is-unsorted.patch # Grabbed on 2026-11-13
-    ./patches/16412-labels-for-keymap-commands.patch # Grabbed on 2026-11-15
-    ./patches/13666-statusline-elements-style-support.patch # Grabbed on 2026-11-16
-    ./patches/15573-add-breadcrumb-navigation-bar.patch # Grabbed on 2026-11-18
-    ./patches/12369-add-support-for-basic-icons.patch # Grabbed on 2026-11-18
-    ./patches/add-icons-to-breadcrumb-navigation-bar.patch # Custom
-    ./patches/fix-bufferline-padding.patch # Custom
-    ./patches/style-icons-and-kinds-in-completion-menu.patch # Custom
-    ./patches/16071-lsp-correctly-clear-workspace-diagnostics-on-LSP-stop-or-restart.patch # Grabbed on 2026-11-20
-  ];
-
   # Helix calls `rustPlatform.buildRustPackage` and passes it a function that
   # takes one argument and returns a set. This set should be passed to
   # `buildRustPackage`, but here I intercept it, add my patches, and then pass
@@ -39,7 +22,7 @@ let
       let
         helixSet = (helixFn null);
         # Collect the patches that Helix upstream already declares plus our own
-        patches = (helixSet.patches or [ ]) ++ helixPatches;
+        patches = (helixSet.patches or [ ]) ++ [ ./my-patches.patch ];
         # Patch the upstream `Cargo.lock` so it matches the patched sources
         patchedLockFile = pkgs.runCommand "Cargo.lock" { } ''
           cp ${helixSet.cargoLock.lockFile} Cargo.lock

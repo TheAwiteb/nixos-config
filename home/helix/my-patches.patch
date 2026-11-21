@@ -1,7 +1,1715 @@
-From 02a6a1bc8dee2b82596d0ad52220f3faa005ab86 Mon Sep 17 00:00:00 2001
+From 09b9aa2e5fa8786a0c29e97c906279d00a1b883c Mon Sep 17 00:00:00 2001
+From: Taylor Plewe <tplewe@outlook.com>
+Date: Sat, 15 Nov 2025 13:49:57 -0700
+Subject: [PATCH 01/15] ensure cursor is within view after jumping to position
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/commands/lsp.rs | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/helix-term/src/commands/lsp.rs b/helix-term/src/commands/lsp.rs
+index e3e79f27c..1f73b47b2 100644
+--- a/helix-term/src/commands/lsp.rs
++++ b/helix-term/src/commands/lsp.rs
+@@ -140,6 +140,7 @@ fn jump_to_position(
+     offset_encoding: OffsetEncoding,
+     action: Action,
+ ) {
++    let scrolloff = editor.config().scrolloff;
+     let doc = match editor.open(path, action) {
+         Ok(id) => doc_mut!(editor, &id),
+         Err(err) => {
+@@ -163,6 +164,7 @@ fn jump_to_position(
+     if action.align_view(view, doc.id()) {
+         align_view(doc, view, Align::Center);
+     }
++    view.ensure_cursor_in_view(doc, scrolloff);
+ }
+ 
+ fn display_symbol_kind(kind: lsp::SymbolKind) -> &'static str {
+
+base-commit: 1a3fdfda6dfdda4567af6093a6249bb2bb422fc6
+-- 
+2.55.0
+
+
+From 48b69871d5fac7feb272c247e796fd20be99ed75 Mon Sep 17 00:00:00 2001
+From: "Alexis (Poliorcetics) Bourget" <ab_contribs@poliorcetiq.eu>
+Date: Mon, 20 Jul 2026 15:01:23 +0200
+Subject: [PATCH 02/15] fix: lsp: clear document diagnostics when refreshing
+ language servers for a document
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-view/src/editor.rs | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/helix-view/src/editor.rs b/helix-view/src/editor.rs
+index 2570b4cf5..0ab12dbaa 100644
+--- a/helix-view/src/editor.rs
++++ b/helix-view/src/editor.rs
+@@ -1600,7 +1600,12 @@ pub fn language_server_by_id(
+     }
+ 
+     /// Refreshes the language server for a given document
++    ///
++    /// This will clear all exisiting diagnostics for the document
+     pub fn refresh_language_servers(&mut self, doc_id: DocumentId) {
++        if let Some(doc) = self.documents.get_mut(&doc_id) {
++            doc.diagnostics.clear();
++        };
+         self.launch_language_servers(doc_id)
+     }
+ 
+-- 
+2.55.0
+
+
+From a137c01499f18765dd38da37f0e50dbb51bf8216 Mon Sep 17 00:00:00 2001
+From: abusalah0 <109g83@gmail.com>
+Date: Sat, 7 Nov 2026 01:16:04 +0300
+Subject: [PATCH 03/15] fix(core): prevent selection underflow after prior
+ deletion
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-core/src/transaction.rs | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/helix-core/src/transaction.rs b/helix-core/src/transaction.rs
+index 2a51a5c90..ea52b4e3b 100644
+--- a/helix-core/src/transaction.rs
++++ b/helix-core/src/transaction.rs
+@@ -781,8 +781,8 @@ pub fn change_by_and_with_selection<F>(doc: &Rope, selection: &Selection, mut f:
+             };
+ 
+             let offset_range = Range::new(
+-                (new_range.anchor as isize + offset) as usize,
+-                (new_range.head as isize + offset) as usize,
++                new_range.anchor.saturating_add_signed(offset),
++                new_range.head.saturating_add_signed(offset),
+             );
+ 
+             end_ranges.push(offset_range);
+@@ -1213,4 +1213,23 @@ fn combine_with_utf8() {
+         assert_eq!(changes.changes, &[Insert(TEST_CASE.into())]);
+         assert_eq!(changes.len_after, TEST_CASE.chars().count());
+     }
++
++    #[test]
++    fn change_by_and_with_selection_after_prior_deletion() {
++        let doc = Rope::from("0123456789abc");
++        let selection = Selection::new(crate::smallvec![Range::point(0), Range::point(1)], 0);
++
++        let transaction = Transaction::change_by_and_with_selection(&doc, &selection, |range| {
++            if range.head == 0 {
++                ((0, 10, None), None)
++            } else {
++                ((10, 10, None), None)
++            }
++        });
++
++        let mut result = doc.clone();
++        assert!(transaction.apply(&mut result));
++        assert_eq!(result, "abc");
++        assert_eq!(transaction.selection().unwrap(), &Selection::point(0));
++    }
+ }
+-- 
+2.55.0
+
+
+From 00af9b04fcedf5546b02da0b02ba6c3775921f7a Mon Sep 17 00:00:00 2001
+From: feafel <feafel@example.com>
+Date: Thu, 5 Nov 2026 04:13:13 +0700
+Subject: [PATCH 04/15] transaction: sort deletions before merging
+
+Transaction::delete merges overlapping ranges while walking them, but it
+only prevented ranges whose end was before the previous range's end from
+being dropped. Callers may pass ranges in any order, and unsorted ranges
+were silently skipped.
+
+Collect and sort the ranges by start before merging. Add a regression
+test with two unsorted, non-overlapping ranges.
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-core/src/transaction.rs | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/helix-core/src/transaction.rs b/helix-core/src/transaction.rs
+index ea52b4e3b..21e792b2f 100644
+--- a/helix-core/src/transaction.rs
++++ b/helix-core/src/transaction.rs
+@@ -673,9 +673,13 @@ pub fn delete<I>(doc: &Rope, deletions: I) -> Self
+     {
+         let len = doc.len_chars();
+ 
+-        let (lower, upper) = deletions.size_hint();
+-        let size = upper.unwrap_or(lower);
+-        let mut changeset = ChangeSet::with_capacity(2 * size + 1); // rough estimate
++        // The merge below relies on ranges sorted by start; callers are not
++        // required to provide them in order, and unsorted ranges used to be
++        // dropped silently.
++        let mut deletions: Vec<Deletion> = deletions.collect();
++        deletions.sort_unstable_by_key(|&(from, _)| from);
++
++        let mut changeset = ChangeSet::with_capacity(2 * deletions.len() + 1); // rough estimate
+ 
+         let mut last = 0;
+         for (mut from, to) in deletions {
+@@ -936,6 +940,16 @@ mod test {
+     use super::*;
+     use crate::history::State;
+ 
++    #[test]
++    fn delete_unsorted_ranges() {
++        let doc = Rope::from("abcd");
++        let transaction = Transaction::delete(&doc, vec![(2, 3), (0, 1)].into_iter());
++
++        let mut doc = doc;
++        assert!(transaction.apply(&mut doc));
++        assert_eq!(doc, "bd");
++    }
++
+     #[test]
+     fn composition() {
+         use Operation::*;
+-- 
+2.55.0
+
+
+From 7ccd3964a593dc2ac790c874be928d0568de0252 Mon Sep 17 00:00:00 2001
+From: Santhi Prakash <b.santhiprakash@gmail.com>
+Date: Thu, 5 Nov 2026 05:53:26 +0000
+Subject: [PATCH 05/15] fix(transaction): count kept ranges for the new primary
+ index
+
+- Problem: `change_by_selection_ignore_overlapping` set the new primary
+  index from the OLD selection index, so overlapping ranges dropped by
+  `change_ignore_overlapping` could leave `primary_index >= ranges.len()`,
+  panicking `Selection::new`'s debug assert (and leaving an out-of-bounds
+  primary index in release builds).
+- Fix: record `ranges.len()` (the index the range occupies in the new
+  list) instead of the old `idx` for the primary and last-selection
+  indices, so the new primary index always points into the new ranges.
+- Verification: new `change_by_selection_ignore_overlapping_primary` test
+  panics at `selection.rs`'s `primary_index < ranges.len()` assert on
+  pre-fix code and passes post-fix; `cargo test --workspace
+  --no-fail-fast` matches master (only the two pre-existing
+  grammar-fetch env failures, `syntax::test::test_pretty_print` and
+  `test_textobject_queries`); `cargo fmt --check` and `cargo clippy -p
+  helix-core` clean.
+
+Closes #16443
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-core/src/transaction.rs | 36 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+diff --git a/helix-core/src/transaction.rs b/helix-core/src/transaction.rs
+index 21e792b2f..c281a0082 100644
+--- a/helix-core/src/transaction.rs
++++ b/helix-core/src/transaction.rs
+@@ -1246,4 +1246,40 @@ fn change_by_and_with_selection_after_prior_deletion() {
+         assert_eq!(result, "abc");
+         assert_eq!(transaction.selection().unwrap(), &Selection::point(0));
+     }
++
++    fn change_by_selection_ignore_overlapping_primary() {
++        // The range before the primary overlaps the first change and is dropped: the primary
++        // index must count the kept ranges.
++        let doc = Rope::from("0123456789abc");
++        for (ranges, primary) in [
++            (
++                crate::smallvec![Range::new(0, 1), Range::new(2, 3), Range::new(4, 5)],
++                2,
++            ),
++            (
++                crate::smallvec![
++                    Range::new(0, 1),
++                    Range::new(2, 3),
++                    Range::new(4, 5),
++                    Range::new(6, 7)
++                ],
++                2,
++            ),
++        ] {
++            let selection = Selection::new(ranges, primary);
++            let (_, new_selection) = Transaction::change_by_selection_ignore_overlapping(
++                &doc,
++                &selection,
++                |range| {
++                    if range.from() == 0 {
++                        (0, 3)
++                    } else {
++                        (range.from(), range.to())
++                    }
++                },
++                |_, _| None,
++            );
++            assert_eq!(new_selection.primary(), selection.primary());
++        }
++    }
+ }
+-- 
+2.55.0
+
+
+From 1ff2c4fba896302be96d1bfadd01cd121fd31fc0 Mon Sep 17 00:00:00 2001
+From: Walter <wtsiamruk@gmail.com>
+Date: Sat, 24 Oct 2026 20:12:33 -0400
+Subject: [PATCH 06/15] Add configurable labels for keymap commands and
+ sub-menus
+
+A keymap entry can now be a table with a `label` and a `command`
+(a command or list of commands); the label is shown in the infobox
+instead of the command's doc or "[Multiple commands]". A `label` key
+in a sub-keymap sets the infobox title.
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/keymap.rs        | 87 ++++++++++++++++++++++++++++-----
+ helix-term/src/keymap/macros.rs |  2 +-
+ 2 files changed, 75 insertions(+), 14 deletions(-)
+
+diff --git a/helix-term/src/keymap.rs b/helix-term/src/keymap.rs
+index a9013edcf..22fe3d38e 100644
+--- a/helix-term/src/keymap.rs
++++ b/helix-term/src/keymap.rs
+@@ -43,6 +43,9 @@ pub fn new(name: &str, map: IndexMap<KeyEvent, KeyTrie>) -> Self {
+     /// corresponding keyevent in self, except when both other and self have
+     /// subnodes for same key. In that case the merge is recursive.
+     pub fn merge(&mut self, mut other: Self) {
++        if !other.name.is_empty() {
++            self.name = std::mem::take(&mut other.name);
++        }
+         for (key, trie) in std::mem::take(&mut other.map) {
+             if let Some(KeyTrie::Node(node)) = self.map.get_mut(&key) {
+                 if let KeyTrie::Node(other_node) = trie {
+@@ -65,7 +68,7 @@ pub fn infobox(&self) -> Info {
+                     cmd.doc()
+                 }
+                 KeyTrie::Node(n) => &n.name,
+-                KeyTrie::Sequence(_) => "[Multiple commands]",
++                KeyTrie::Sequence(_, label) => label.as_deref().unwrap_or("[Multiple commands]"),
+             };
+             match body.iter().position(|(_, d)| d == &desc) {
+                 Some(pos) => {
+@@ -109,7 +112,8 @@ fn deref_mut(&mut self) -> &mut Self::Target {
+ #[derive(Debug, Clone, PartialEq)]
+ pub enum KeyTrie {
+     MappableCommand(MappableCommand),
+-    Sequence(Vec<MappableCommand>),
++    /// Commands run in order, with an optional label shown in the infobox
++    Sequence(Vec<MappableCommand>, Option<String>),
+     Node(KeyTrieNode),
+ }
+ 
+@@ -166,18 +170,47 @@ fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+             ));
+         }
+ 
+-        Ok(KeyTrie::Sequence(commands))
++        Ok(KeyTrie::Sequence(commands, None))
+     }
+ 
+     fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+     where
+         M: serde::de::MapAccess<'de>,
+     {
++        // `label` and `command` can't clash with keys: neither parses as a KeyEvent.
++        let mut label = None;
++        let mut commands = None;
+         let mut mapping = IndexMap::new();
+-        while let Some((key, value)) = map.next_entry::<KeyEvent, KeyTrie>()? {
+-            mapping.insert(key, value);
++        while let Some(key) = map.next_key::<String>()? {
++            match key.as_str() {
++                "label" => label = Some(map.next_value::<String>()?),
++                "command" => {
++                    commands = Some(match map.next_value::<KeyTrie>()? {
++                        KeyTrie::MappableCommand(cmd) => vec![cmd],
++                        KeyTrie::Sequence(cmds, _) => cmds,
++                        KeyTrie::Node(_) => {
++                            return Err(serde::de::Error::custom(
++                                "`command` must be a command or list of commands",
++                            ))
++                        }
++                    })
++                }
++                _ => {
++                    let key = key.parse::<KeyEvent>().map_err(serde::de::Error::custom)?;
++                    mapping.insert(key, map.next_value::<KeyTrie>()?);
++                }
++            }
++        }
++        match commands {
++            Some(_) if !mapping.is_empty() => Err(serde::de::Error::custom(
++                "a keymap entry can't have both `command` and sub-keys",
++            )),
++            Some(commands) => Ok(KeyTrie::Sequence(commands, label)),
++            None => Ok(KeyTrie::Node(KeyTrieNode::new(
++                label.as_deref().unwrap_or_default(),
++                mapping,
++            ))),
+         }
+-        Ok(KeyTrie::Node(KeyTrieNode::new("", mapping)))
+     }
+ }
+ 
+@@ -200,7 +233,7 @@ fn map_node(cmd_map: &mut ReverseKeymap, node: &KeyTrie, keys: &mut Vec<KeyEvent
+                         keys.pop();
+                     }
+                 }
+-                KeyTrie::Sequence(_) => {}
++                KeyTrie::Sequence(..) => {}
+             };
+         }
+ 
+@@ -212,14 +245,14 @@ fn map_node(cmd_map: &mut ReverseKeymap, node: &KeyTrie, keys: &mut Vec<KeyEvent
+     pub fn node(&self) -> Option<&KeyTrieNode> {
+         match *self {
+             KeyTrie::Node(ref node) => Some(node),
+-            KeyTrie::MappableCommand(_) | KeyTrie::Sequence(_) => None,
++            KeyTrie::MappableCommand(_) | KeyTrie::Sequence(..) => None,
+         }
+     }
+ 
+     pub fn node_mut(&mut self) -> Option<&mut KeyTrieNode> {
+         match *self {
+             KeyTrie::Node(ref mut node) => Some(node),
+-            KeyTrie::MappableCommand(_) | KeyTrie::Sequence(_) => None,
++            KeyTrie::MappableCommand(_) | KeyTrie::Sequence(..) => None,
+         }
+     }
+ 
+@@ -237,7 +270,7 @@ pub fn search(&self, keys: &[KeyEvent]) -> Option<&KeyTrie> {
+             trie = match trie {
+                 KeyTrie::Node(map) => map.get(key),
+                 // leaf encountered while keys left to process
+-                KeyTrie::MappableCommand(_) | KeyTrie::Sequence(_) => None,
++                KeyTrie::MappableCommand(_) | KeyTrie::Sequence(..) => None,
+             }?
+         }
+         Some(trie)
+@@ -327,7 +360,7 @@ pub fn get(&mut self, mode: Mode, key: KeyEvent) -> KeymapResult {
+             Some(KeyTrie::MappableCommand(ref cmd)) => {
+                 return KeymapResult::Matched(cmd.clone());
+             }
+-            Some(KeyTrie::Sequence(ref cmds)) => {
++            Some(KeyTrie::Sequence(ref cmds, _)) => {
+                 return KeymapResult::MatchedSequence(cmds.clone());
+             }
+             None => return KeymapResult::NotFound,
+@@ -347,7 +380,7 @@ pub fn get(&mut self, mode: Mode, key: KeyEvent) -> KeymapResult {
+                 self.state.clear();
+                 KeymapResult::Matched(cmd.clone())
+             }
+-            Some(KeyTrie::Sequence(cmds)) => {
++            Some(KeyTrie::Sequence(cmds, _)) => {
+                 self.state.clear();
+                 KeymapResult::MatchedSequence(cmds.clone())
+             }
+@@ -609,10 +642,38 @@ fn escaped_keymap() {
+                         args: "sed -E 's/\\s+$//g'".to_string(),
+                         doc: "".to_string(),
+                     },
+-                })
++                }, None)
+             },
+         ));
+ 
+         assert_eq!(toml::from_str(keys), Ok(expectation));
+     }
++
++    #[test]
++    fn labelled_keymap() {
++        let keys = r#"
++label = "Build"
++y = { label = "Copy line range reference", command = ":sh echo hi" }
++z = { label = "Select and yank", command = ["select_all", "yank"] }
++h = { label = "Go left with macro", command = "@h" }
++"#;
++        let trie: KeyTrie = toml::from_str(keys).unwrap();
++        let node = trie.node().unwrap();
++        assert_eq!(
++            node.get(&key!('z')),
++            Some(&KeyTrie::Sequence(
++                vec![MappableCommand::select_all, MappableCommand::yank],
++                Some("Select and yank".to_string())
++            ))
++        );
++        let info = node.infobox();
++        assert_eq!(info.title, "Build");
++        assert!(info.text.contains("Copy line range reference"));
++        assert!(info.text.contains("Select and yank"));
++        assert!(info.text.contains("Go left with macro"));
++        assert!(!info.text.contains("@h"));
++
++        let mixed = r#"y = { command = "yank", a = "select_all" }"#;
++        assert!(toml::from_str::<KeyTrie>(mixed).is_err());
++    }
+ }
+diff --git a/helix-term/src/keymap/macros.rs b/helix-term/src/keymap/macros.rs
+index 9a69f4e9c..c533a8b75 100644
+--- a/helix-term/src/keymap/macros.rs
++++ b/helix-term/src/keymap/macros.rs
+@@ -90,7 +90,7 @@ macro_rules! keymap {
+     };
+ 
+     (@trie [$($cmd:ident),* $(,)?]) => {
+-        $crate::keymap::KeyTrie::Sequence(vec![$($crate::commands::MappableCommand::$cmd),*])
++        $crate::keymap::KeyTrie::Sequence(vec![$($crate::commands::MappableCommand::$cmd),*], None)
+     };
+ 
+     (
+-- 
+2.55.0
+
+
+From 900d3031425414b11dd42dddafe0952fd184b2d8 Mon Sep 17 00:00:00 2001
+From: Erasin <erasinoo@gmail.com>
+Date: Sat, 31 May 2025 19:03:50 +0800
+Subject: [PATCH 07/15] feat: statusline element style
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/ui/statusline.rs | 37 ++++++++++++++++++++++-----------
+ helix-view/src/editor.rs        | 34 ++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 12 deletions(-)
+
+diff --git a/helix-term/src/ui/statusline.rs b/helix-term/src/ui/statusline.rs
+index 3c6cfce8e..6b79b4ab7 100644
+--- a/helix-term/src/ui/statusline.rs
++++ b/helix-term/src/ui/statusline.rs
+@@ -66,6 +66,7 @@ pub fn render(context: &mut RenderContext, viewport: Rect, surface: &mut Surface
+     for element_id in &config.statusline.left {
+         let render = get_render_function(*element_id);
+         (render)(context, |context, span| {
++            let base_style = statusline_style(context, &element_id.to_string());
+             append(&mut context.parts.left, span, base_style)
+         });
+     }
+@@ -82,6 +83,7 @@ pub fn render(context: &mut RenderContext, viewport: Rect, surface: &mut Surface
+     for element_id in &config.statusline.right {
+         let render = get_render_function(*element_id);
+         (render)(context, |context, span| {
++            let base_style = statusline_style(context, &element_id.to_string());
+             append(&mut context.parts.right, span, base_style)
+         })
+     }
+@@ -101,6 +103,7 @@ pub fn render(context: &mut RenderContext, viewport: Rect, surface: &mut Surface
+     for element_id in &config.statusline.center {
+         let render = get_render_function(*element_id);
+         (render)(context, |context, span| {
++            let base_style = statusline_style(context, &element_id.to_string());
+             append(&mut context.parts.center, span, base_style)
+         })
+     }
+@@ -161,6 +164,22 @@ fn get_render_function<'a, F>(element_id: StatusLineElementID) -> impl Fn(&mut R
+     }
+ }
+ 
++fn statusline_style(context: &RenderContext, scope: &str) -> Style {
++    let scope = if context.focused {
++        format!("ui.statusline.{scope}")
++    } else {
++        format!("ui.statusline.inactive.{scope}")
++    };
++
++    let config = context.editor.config();
++
++    if config.color_modes {
++        context.editor.theme.get(&scope)
++    } else {
++        Style::default()
++    }
++}
++
+ fn render_mode<'a, F>(context: &mut RenderContext<'a>, write: F)
+ where
+     F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
+@@ -394,7 +413,7 @@ fn render_position_percentage<'a, F>(context: &mut RenderContext<'a>, write: F)
+     let maxrows = context.doc.text().len_lines();
+     write(
+         context,
+-        format!("{}%", (position.row + 1) * 100 / maxrows).into(),
++        format!(" {}% ", (position.row + 1) * 100 / maxrows).into(),
+     );
+ }
+ 
+@@ -479,11 +498,7 @@ fn render_file_modification_indicator<'a, F>(context: &mut RenderContext<'a>, wr
+ where
+     F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
+ {
+-    let title = if context.doc.is_modified() {
+-        "[+]"
+-    } else {
+-        "   "
+-    };
++    let title = if context.doc.is_modified() { "[+]" } else { "" };
+ 
+     write(context, title.into());
+ }
+@@ -520,10 +535,9 @@ fn render_separator<'a, F>(context: &mut RenderContext<'a>, write: F)
+ where
+     F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
+ {
+-    let sep = &context.editor.config().statusline.separator;
+-    let style = context.editor.theme.get("ui.statusline.separator");
++    let sep = context.editor.config().statusline.separator.clone();
+ 
+-    write(context, Span::styled(sep.to_string(), style));
++    write(context, sep.into());
+ }
+ 
+ fn render_spacer<'a, F>(context: &mut RenderContext<'a>, write: F)
+@@ -559,11 +573,10 @@ fn render_file_indent_style<'a, F>(context: &mut RenderContext<'a>, write: F)
+ where
+     F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
+ {
+-    let style = context.doc.indent_style;
+-
++    let indent_style = context.doc.indent_style;
+     write(
+         context,
+-        match style {
++        match indent_style {
+             IndentStyle::Tabs => " tabs ".into(),
+             IndentStyle::Spaces(indent) => {
+                 format!(" {} space{} ", indent, if indent == 1 { "" } else { "s" }).into()
+diff --git a/helix-view/src/editor.rs b/helix-view/src/editor.rs
+index 0ab12dbaa..56a59d092 100644
+--- a/helix-view/src/editor.rs
++++ b/helix-view/src/editor.rs
+@@ -28,6 +28,7 @@
+     borrow::Cow,
+     cell::Cell,
+     collections::{BTreeMap, HashMap, HashSet, VecDeque},
++    fmt::Display,
+     fs,
+     io::{self, stdin},
+     num::{NonZeroU8, NonZeroUsize},
+@@ -782,6 +783,39 @@ pub enum StatusLineElement {
+     CodeActionHint,
+ }
+ 
++impl Display for StatusLineElement {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        use StatusLineElement::*;
++        let element = match self {
++            Mode => "mode",
++            Spinner => "spinner",
++            FileBaseName => "file-base-name",
++            FileName => "file-name",
++            FileAbsolutePath => "file-absolute-path",
++            FileModificationIndicator => "file-modification-indicator",
++            ReadOnlyIndicator => "read-only-indicator",
++            FileEncoding => "file-encoding",
++            FileLineEnding => "file-line-ending",
++            FileIndentStyle => "file-indent-style",
++            FileType => "file-type",
++            Diagnostics => "diagnostics",
++            WorkspaceDiagnostics => "workspace-diagnostics",
++            Selections => "selections",
++            PrimarySelectionLength => "primary-selection-length",
++            Position => "position",
++            Separator => "separator",
++            PositionPercentage => "position-percentage",
++            TotalLineNumbers => "total-line-numbers",
++            Spacer => "spacer",
++            VersionControl => "version-control",
++            Register => "register",
++            CurrentWorkingDirectory => "current-working-directory",
++            CodeActionHint => "code-action-hint",
++        };
++        write!(f, "{element}")
++    }
++}
++
+ // Cursor shape is read and used on every rendered frame and so needs
+ // to be fast. Therefore we avoid a hashmap and use an enum indexed array.
+ #[derive(Debug, Clone, PartialEq, Eq)]
+-- 
+2.55.0
+
+
+From 634950fbe2b415897adf9d40cb50c702565d749c Mon Sep 17 00:00:00 2001
+From: Rolo <RoloEdits@gmail.com>
+Date: Wed, 18 Nov 2026 00:21:50 +0000
+Subject: [PATCH 08/15] feat: add breadcrumb plumbing
+
+- feat: add breadcrumb UI element
+- test: lower iterations in `write_concurrent`
+- feat: add documentation for breadcrumb
+- refactor: make breadcrumbs per view
+- hack: offset gutter breakpoint if breadcrumbs enabled
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ book/src/editor.md                          |  21 ++
+ helix-lsp/src/client.rs                     |   2 +-
+ helix-term/src/commands.rs                  |  36 ++--
+ helix-term/src/commands/lsp.rs              |   2 +-
+ helix-term/src/commands/typed.rs            |   1 +
+ helix-term/src/handlers.rs                  |   2 +
+ helix-term/src/handlers/document_symbols.rs | 139 ++++++++++++++
+ helix-term/src/ui/editor.rs                 | 138 +++++++++++++-
+ helix-term/tests/test/commands/write.rs     |   2 +-
+ helix-view/src/document.rs                  | 201 +++++++++++++++++++-
+ helix-view/src/editor.rs                    |  21 ++
+ helix-view/src/graphics.rs                  |   6 +
+ helix-view/src/gutter.rs                    |   9 +-
+ helix-view/src/view.rs                      |  20 +-
+ 14 files changed, 563 insertions(+), 37 deletions(-)
+ create mode 100644 helix-term/src/handlers/document_symbols.rs
+
+diff --git a/helix-lsp/src/client.rs b/helix-lsp/src/client.rs
+index 6e1a24595..2b4b6b6e9 100644
+--- a/helix-lsp/src/client.rs
++++ b/helix-lsp/src/client.rs
+@@ -755,7 +755,7 @@ pub(crate) async fn initialize(&self, enable_snippets: bool) -> Result<lsp::Init
+                         symbol_kind: Some(lsp::SymbolKindCapability {
+                             value_set: Some(lsp::SymbolKind::all()),
+                         }),
+-                        hierarchical_document_symbol_support: Some(false),
++                        hierarchical_document_symbol_support: Some(true),
+                         ..Default::default()
+                     }),
+                     ..Default::default()
+diff --git a/helix-term/src/commands.rs b/helix-term/src/commands.rs
+index aa5392037..53ad950bc 100644
+--- a/helix-term/src/commands.rs
++++ b/helix-term/src/commands.rs
+@@ -1149,7 +1149,7 @@ fn goto_window(cx: &mut Context, align: Align) {
+     let (view, doc) = current!(cx.editor);
+     let view_offset = doc.view_offset(view.id);
+ 
+-    let height = view.inner_height();
++    let height = view.inner_height(doc);
+ 
+     // respect user given count if any
+     // - 1 so we have at least one gap in the middle.
+@@ -1946,7 +1946,7 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
+     let text = doc.text().slice(..);
+ 
+     let cursor = range.cursor(text);
+-    let height = view.inner_height();
++    let height = view.inner_height(doc);
+ 
+     let scrolloff = config.scrolloff.min(height.saturating_sub(1) / 2);
+     let offset = match direction {
+@@ -2047,50 +2047,50 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
+ }
+ 
+ fn page_up(cx: &mut Context) {
+-    let view = view!(cx.editor);
+-    let offset = view.inner_height();
++    let (view, doc) = current_ref!(cx.editor);
++    let offset = view.inner_height(doc);
+     scroll(cx, offset, Direction::Backward, false);
+ }
+ 
+ fn page_down(cx: &mut Context) {
+-    let view = view!(cx.editor);
+-    let offset = view.inner_height();
++    let (view, doc) = current_ref!(cx.editor);
++    let offset = view.inner_height(doc);
+     scroll(cx, offset, Direction::Forward, false);
+ }
+ 
+ fn half_page_up(cx: &mut Context) {
+-    let view = view!(cx.editor);
+-    let offset = view.inner_height() / 2;
++    let (view, doc) = current_ref!(cx.editor);
++    let offset = view.inner_height(doc) / 2;
+     scroll(cx, offset, Direction::Backward, false);
+ }
+ 
+ fn half_page_down(cx: &mut Context) {
+-    let view = view!(cx.editor);
+-    let offset = view.inner_height() / 2;
++    let (view, doc) = current_ref!(cx.editor);
++    let offset = view.inner_height(doc) / 2;
+     scroll(cx, offset, Direction::Forward, false);
+ }
+ 
+ fn page_cursor_up(cx: &mut Context) {
+-    let view = view!(cx.editor);
+-    let offset = view.inner_height();
++    let (view, doc) = current_ref!(cx.editor);
++    let offset = view.inner_height(doc);
+     scroll(cx, offset, Direction::Backward, true);
+ }
+ 
+ fn page_cursor_down(cx: &mut Context) {
+-    let view = view!(cx.editor);
+-    let offset = view.inner_height();
++    let (view, doc) = current_ref!(cx.editor);
++    let offset = view.inner_height(doc);
+     scroll(cx, offset, Direction::Forward, true);
+ }
+ 
+ fn page_cursor_half_up(cx: &mut Context) {
+-    let view = view!(cx.editor);
+-    let offset = view.inner_height() / 2;
++    let (view, doc) = current_ref!(cx.editor);
++    let offset = view.inner_height(doc) / 2;
+     scroll(cx, offset, Direction::Backward, true);
+ }
+ 
+ fn page_cursor_half_down(cx: &mut Context) {
+-    let view = view!(cx.editor);
+-    let offset = view.inner_height() / 2;
++    let (view, doc) = current_ref!(cx.editor);
++    let offset = view.inner_height(doc) / 2;
+     scroll(cx, offset, Direction::Forward, true);
+ }
+ 
+diff --git a/helix-term/src/commands/lsp.rs b/helix-term/src/commands/lsp.rs
+index 1f73b47b2..63c82704b 100644
+--- a/helix-term/src/commands/lsp.rs
++++ b/helix-term/src/commands/lsp.rs
+@@ -1376,7 +1376,7 @@ fn compute_inlay_hints_for_view(
+     // will not show half the view with hints and half without while still being faster
+     // than computing all the hints for the full file (which could be dozens of time
+     // longer than the view is).
+-    let view_height = view.inner_height();
++    let view_height = view.inner_height(doc);
+     let first_visible_line =
+         doc_text.char_to_line(doc.view_offset(view_id).anchor.min(doc_text.len_chars()));
+     let first_line = first_visible_line.saturating_sub(view_height);
+diff --git a/helix-term/src/commands/typed.rs b/helix-term/src/commands/typed.rs
+index ab96e4964..b925cc416 100644
+--- a/helix-term/src/commands/typed.rs
++++ b/helix-term/src/commands/typed.rs
+@@ -1900,6 +1900,7 @@ fn lsp_stop(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> any
+                 doc.clear_diagnostics_for_language_server(client.id());
+                 doc.reset_all_inlay_hints();
+                 doc.inlay_hints_oudated = true;
++                doc.clear_document_symbols();
+             }
+         }
+     }
+diff --git a/helix-term/src/handlers.rs b/helix-term/src/handlers.rs
+index 46afc4cee..5f3dd22f8 100644
+--- a/helix-term/src/handlers.rs
++++ b/helix-term/src/handlers.rs
+@@ -22,6 +22,7 @@
+ mod document_colors;
+ mod document_highlight;
+ mod document_links;
++mod document_symbols;
+ mod prompt;
+ mod signature_help;
+ mod snippet;
+@@ -57,6 +58,7 @@ pub fn setup(config: Arc<ArcSwap<Config>>) -> Handlers {
+     signature_help::register_hooks(&handlers);
+     document_highlight::register_hooks(&handlers);
+     code_action_hint::register_hooks(&handlers);
++    document_symbols::register_hooks(&handlers);
+     auto_save::register_hooks(&handlers);
+     diagnostics::register_hooks(&handlers);
+     snippet::register_hooks(&handlers);
+diff --git a/helix-term/src/handlers/document_symbols.rs b/helix-term/src/handlers/document_symbols.rs
+new file mode 100644
+index 000000000..629a9e5bd
+--- /dev/null
++++ b/helix-term/src/handlers/document_symbols.rs
+@@ -0,0 +1,139 @@
++use crate::job;
++use helix_core::syntax::config::LanguageServerFeature;
++use helix_event::{cancelable_future, register_hook};
++use helix_lsp::lsp::DocumentSymbolResponse;
++use helix_view::{
++    events::{
++        ConfigDidChange, DocumentDidChange, DocumentDidOpen, LanguageServerExited,
++        LanguageServerInitialized, SelectionDidChange,
++    },
++    handlers::Handlers,
++    DocumentId, Editor,
++};
++
++fn request_document_symbols(editor: &mut Editor, doc_id: DocumentId) {
++    if !editor.config().breadcrumb.enable {
++        return;
++    }
++
++    let Some(doc) = editor.document_mut(doc_id) else {
++        return;
++    };
++
++    let Some(language_server) = doc
++        // Get the first LSP Server that supports `DocumentSymbols`.
++        .language_servers_with_feature(LanguageServerFeature::DocumentSymbols)
++        .next()
++    else {
++        return;
++    };
++
++    let offset_encoding = language_server.offset_encoding();
++    let Some(future) = language_server.document_symbols(doc.identifier()) else {
++        return;
++    };
++    let cancel = doc.document_symbols_controller.restart();
++
++    tokio::spawn(async move {
++        let Some(Ok(Some(response))) = cancelable_future(future, &cancel).await else {
++            return;
++        };
++
++        job::dispatch(move |editor, _| {
++            if let Some(doc) = editor.document_mut(doc_id) {
++                match response {
++                    DocumentSymbolResponse::Nested(symbols) => {
++                        doc.set_document_symbols(symbols, offset_encoding);
++                    }
++                    // TODO: Using the `Location`, it should be possible to map cursor
++                    // to a hierarchical tree?
++                    DocumentSymbolResponse::Flat(_) => {}
++                }
++            }
++        })
++        .await;
++    });
++}
++
++pub(super) fn register_hooks(_handlers: &Handlers) {
++    register_hook!(move |event: &mut DocumentDidOpen<'_>| {
++        let doc_id = event.doc;
++        let view_id = event.editor.tree.focus;
++        request_document_symbols(event.editor, doc_id);
++        if let Some(doc) = event.editor.document_mut(doc_id) {
++            doc.update_breadcrumbs_for_view(view_id);
++        }
++        Ok(())
++    });
++
++    register_hook!(move |event: &mut DocumentDidChange<'_>| {
++        if !event.ghost_transaction {
++            // Cancel the ongoing request, if present.
++            event.doc.document_symbols_controller.cancel();
++            let view_id = event.view;
++            let doc_id = event.doc.id();
++            job::dispatch_blocking(move |editor, _| {
++                request_document_symbols(editor, doc_id);
++                if let Some(doc) = editor.document_mut(doc_id) {
++                    doc.update_breadcrumbs_for_view(view_id);
++                }
++            });
++        }
++        Ok(())
++    });
++
++    register_hook!(move |event: &mut LanguageServerInitialized<'_>| {
++        let view_id = event.editor.tree.focus;
++        if let Some(view) = event.editor.tree.try_get(view_id) {
++            let doc_id = view.doc;
++            request_document_symbols(event.editor, doc_id);
++            if let Some(doc) = event.editor.document_mut(doc_id) {
++                doc.update_breadcrumbs_for_view(view_id);
++            }
++        }
++        Ok(())
++    });
++
++    register_hook!(move |event: &mut LanguageServerExited<'_>| {
++        for doc in event.editor.documents_mut() {
++            if doc.supports_language_server(event.server_id) {
++                doc.clear_document_symbols();
++            }
++        }
++        Ok(())
++    });
++
++    register_hook!(move |event: &mut ConfigDidChange<'_>| {
++        if !event.old.breadcrumb.enable && event.new.breadcrumb.enable {
++            let view_id = event.editor.tree.focus;
++            if let Some(view) = event.editor.tree.try_get(view_id) {
++                let doc_id = view.doc;
++                request_document_symbols(event.editor, doc_id);
++                if let Some(doc) = event.editor.document_mut(doc_id) {
++                    doc.update_breadcrumbs_for_view(view_id);
++                }
++            }
++            return Ok(());
++        }
++
++        if event.old.breadcrumb.enable && !event.new.breadcrumb.enable {
++            for doc in event.editor.documents_mut() {
++                doc.clear_document_symbols();
++            }
++        }
++
++        Ok(())
++    });
++
++    register_hook!(move |event: &mut SelectionDidChange<'_>| {
++        let doc_id = event.doc.id();
++        let view_id = event.view;
++
++        job::dispatch_blocking(move |editor, _| {
++            if let Some(doc) = editor.document_mut(doc_id) {
++                doc.update_breadcrumbs_for_view_inlined(view_id);
++            }
++        });
++        Ok(())
++    });
++}
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index 1de41d6b0..b849ce087 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -22,10 +22,11 @@
+     unicode::width::UnicodeWidthStr,
+     visual_offset_from_block, Change, Position, Range, Selection, Transaction,
+ };
++use helix_lsp::lsp::SymbolKind;
+ use helix_view::{
+     annotations::diagnostics::DiagnosticFilter,
+     document::{Mode, SCRATCH_BUFFER_NAME},
+-    editor::{CompleteAction, CursorShapeConfig},
++    editor::{BufferLine, CompleteAction, CursorShapeConfig},
+     graphics::{Color, CursorKind, Modifier, Rect, Style},
+     input::{KeyEvent, MouseButton, MouseEvent, MouseEventKind},
+     keyboard::{KeyCode, KeyModifiers},
+@@ -74,6 +75,7 @@ pub fn spinners_mut(&mut self) -> &mut ProgressSpinners {
+         &mut self.spinners
+     }
+ 
++    #[allow(clippy::too_many_lines)]
+     pub fn render_view(
+         &self,
+         editor: &Editor,
+@@ -94,6 +96,10 @@ pub fn render_view(
+         let text_annotations = view.text_annotations(doc, Some(theme));
+         let mut decorations = DecorationManager::default();
+ 
++        if config.breadcrumb.enable {
++            Self::render_breadcrumb(editor, doc, view, area.with_height(1), surface);
++        }
++
+         if is_focused && config.cursorline {
+             decorations.add_decoration(Self::cursorline(doc, view, theme));
+         }
+@@ -712,6 +718,135 @@ pub fn render_bufferline(editor: &Editor, viewport: Rect, surface: &mut Surface)
+         }
+     }
+ 
++    #[allow(clippy::too_many_lines)]
++    pub fn render_breadcrumb(
++        editor: &Editor,
++        doc: &Document,
++        view: &View,
++        viewport: Rect,
++        surface: &mut Surface,
++    ) {
++        use helix_view::editor::BreadcrumbPathOptions::{File, Full};
++
++        #[inline]
++        #[must_use]
++        fn draw_element(
++            surface: &mut Surface,
++            viewport: Rect,
++            x: u16,
++            content: &str,
++            style: Style,
++        ) -> u16 {
++            let remaining = viewport.right().saturating_sub(x) as usize;
++            surface
++                .set_stringn(x, viewport.y, content, remaining, style)
++                .0
++        }
++
++        let config = editor.config();
++
++        let style = editor
++            .theme
++            .try_get_exact("ui.breadcrumb")
++            .unwrap_or_else(|| editor.theme.get("ui.text"));
++
++        surface.clear_with(viewport, style);
++
++        let mut x = viewport.x.saturating_add(1);
++
++        let separator = " > ";
++        let separator_style = editor.theme.get("ui.breadcrumb.separator");
++        let mut draw_separator = false;
++
++        if matches!(config.breadcrumb.path, Full | File) {
++            if let Some(path) = doc.relative_path() {
++                let mut components = path.components().peekable();
++
++                if matches!(config.breadcrumb.path, File) {
++                    // Skip until the filename component.
++                    //
++                    // NOTE:
++                    // We could use `next_back` to get this element directly, but
++                    // this keeps our logic below simpler, with the logic for `Full`
++                    // and `File` being the same below this point.
++                    //
++                    // PERF: The `clone` is cheap; should be equivalent to a `Copy`.
++                    while components.clone().nth(1).is_some() {
++                        components.next();
++                    }
++                }
++
++                while let Some(component) = components.next() {
++                    if draw_separator {
++                        x = draw_element(surface, viewport, x, separator, separator_style);
++                    } else {
++                        draw_separator = true;
++                    }
++
++                    let segment = component.as_os_str().to_string_lossy();
++                    let is_directory = components.peek().is_some();
++
++                    let style = if is_directory {
++                        editor.theme.get("ui.text.directory")
++                    } else {
++                        style
++                    };
++
++                    x = draw_element(surface, viewport, x, &segment, style);
++                }
++            } else {
++                // Handle `[scratch]`
++                x = draw_element(surface, viewport, x, SCRATCH_BUFFER_NAME, style);
++            }
++        }
++
++        // Draw symbols, if any.
++        if let Some(breadcrumb) = doc.breadcrumbs.get(&view.id) {
++            for symbol in breadcrumb.iter() {
++                if draw_separator {
++                    x = draw_element(surface, viewport, x, separator, separator_style);
++                } else {
++                    draw_separator = true;
++                }
++
++                let style = match symbol.kind {
++                    SymbolKind::MODULE
++                    | SymbolKind::NAMESPACE
++                    | SymbolKind::PACKAGE => editor.theme.get("namespace"),
++
++                    SymbolKind::OBJECT // impl Block
++                    | SymbolKind::STRUCT
++                    | SymbolKind::INTERFACE
++                    | SymbolKind::CLASS => editor.theme.get("type"),
++
++                    SymbolKind::METHOD => editor.theme.get("function.method"),
++                    SymbolKind::FUNCTION => editor.theme.get("function"),
++
++                    SymbolKind::ENUM => editor.theme.get("type.enum"),
++                    SymbolKind::ENUM_MEMBER => editor.theme.get("type.enum.variant"),
++
++                   SymbolKind::FIELD | SymbolKind::PROPERTY => {
++                        editor.theme.get("variable.other.member")
++                    }
++
++                    SymbolKind::VARIABLE => editor.theme.get("variable"),
++                    SymbolKind::CONSTANT => editor.theme.get("constant"),
++                    SymbolKind::CONSTRUCTOR => editor.theme.get("constructor"),
++                    SymbolKind::STRING => editor.theme.get("string"),
++                    SymbolKind::NUMBER => editor.theme.get("constant.numeric"),
++                    SymbolKind::BOOLEAN => editor.theme.get("constant.builtin.boolean"),
++                    SymbolKind::ARRAY => editor.theme.get("punctuation.bracket"),
++                    SymbolKind::KEY => editor.theme.get("label"),
++                    SymbolKind::NULL => editor.theme.get("constant.builtin"),
++                    SymbolKind::TYPE_PARAMETER => editor.theme.get("type.parameter"),
++                    _ => style,
++                };
++
++                x = draw_element(surface, viewport, x, symbol.name.as_ref(), style);
++            }
++        }
++    }
++
+     pub fn render_gutter<'d>(
+         editor: &'d Editor,
+         doc: &'d Document,
+@@ -1620,7 +1755,6 @@ fn render(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context) {
+         let config = cx.editor.config();
+ 
+         // check if bufferline should be rendered
+-        use helix_view::editor::BufferLine;
+         let use_bufferline = match config.bufferline {
+             BufferLine::Always => true,
+             BufferLine::Multiple if cx.editor.documents.len() > 1 => true,
+diff --git a/helix-term/tests/test/commands/write.rs b/helix-term/tests/test/commands/write.rs
+index c7f6b0354..9420bd3f1 100644
+--- a/helix-term/tests/test/commands/write.rs
++++ b/helix-term/tests/test/commands/write.rs
+@@ -284,7 +284,7 @@ async fn test_write_quit() -> anyhow::Result<()> {
+ async fn test_write_concurrent() -> anyhow::Result<()> {
+     let mut file = tempfile::NamedTempFile::new()?;
+     let mut command = String::new();
+-    const RANGE: RangeInclusive<i32> = 1..=1000;
++    const RANGE: RangeInclusive<i32> = 1..=100;
+     let mut app = helpers::AppBuilder::new()
+         .with_file(file.path(), None)
+         .build()?;
+diff --git a/helix-view/src/document.rs b/helix-view/src/document.rs
+index 81c619a6c..2088e0594 100644
+--- a/helix-view/src/document.rs
++++ b/helix-view/src/document.rs
+@@ -13,6 +13,7 @@
+ use helix_core::syntax::config::LanguageServerFeature;
+ use helix_core::text_annotations::{InlineAnnotation, Overlay};
+ use helix_event::TaskController;
++use helix_lsp::lsp::DocumentSymbol;
+ use helix_lsp::util::lsp_pos_to_pos;
+ use helix_stdx::faccess::{copy_metadata, readonly};
+ use helix_vcs::{DiffHandle, DiffProviderRegistry};
+@@ -149,15 +150,22 @@ pub struct Document {
+     ///
+     /// To know if they're up-to-date, check the `id` field in `DocumentInlayHints`.
+     pub(crate) inlay_hints: HashMap<ViewId, DocumentInlayHints>,
++    /// Set to `true` when the document is updated, reset to `false` on the next inlay hints
++    /// update from the LSP
++    pub inlay_hints_oudated: bool,
++
+     /// Jump label overlays for each view.
+     pub(crate) jump_labels: HashMap<ViewId, Vec<Overlay>>,
++
+     /// LSP document highlights for each view, stored as char ranges.
+     pub(crate) document_highlights: HashMap<ViewId, DocumentHighlights>,
+     /// LSP code action hints for each view.
+     pub(crate) code_action_hints: HashSet<ViewId>,
+-    /// Set to `true` when the document is updated, reset to `false` on the next inlay hints
+-    /// update from the LSP
+-    pub inlay_hints_oudated: bool,
++
++    // Stores all the symbols of the Document.
++    pub(crate) symbols: Option<DocumentSymbolCache>,
++    /// Breadcrumb trail for each view showing this document.
++    pub breadcrumbs: HashMap<ViewId, Breadcrumbs>,
+ 
+     path: Option<PathBuf>,
+     relative_path: OnceLock<Option<PathBuf>>,
+@@ -230,6 +238,7 @@ pub struct Document {
+     pub code_action_controllers: HashMap<ViewId, TaskController>,
+     pub pull_diagnostic_controller: TaskController,
+     pub document_link_controller: TaskController,
++    pub document_symbols_controller: TaskController,
+ 
+     // NOTE: this field should eventually go away - we should use the Editor's syn_loader instead
+     // of storing a copy on every doc. Then we can remove the surrounding `Arc` and use the
+@@ -237,6 +246,83 @@ pub struct Document {
+     syn_loader: Arc<ArcSwap<syntax::Loader>>,
+ }
+ 
++pub struct DocumentSymbolCache {
++    pub tree: Vec<ThinDocumentSymbol>,
++    pub offset_encoding: OffsetEncoding,
++}
++
++#[derive(Debug, Clone)]
++pub struct ThinDocumentSymbol {
++    pub name: Box<str>,
++    pub kind: lsp::SymbolKind,
++    pub range: lsp::Range,
++    pub children: Option<Box<[Self]>>,
++}
++
++impl From<DocumentSymbol> for ThinDocumentSymbol {
++    #[inline]
++    fn from(symbol: DocumentSymbol) -> Self {
++        Self {
++            name: symbol.name.into(),
++            kind: symbol.kind,
++            range: symbol.range,
++            children: symbol.children.map(|children| {
++                let mut vec = Vec::with_capacity(children.len());
++                vec.extend(children.into_iter().map(Self::from));
++                vec.into_boxed_slice()
++            }),
++        }
++    }
++}
++
++#[derive(Debug, Clone, Default)]
++pub struct Breadcrumbs(Vec<Crumb>);
++
++impl Breadcrumbs {
++    #[inline]
++    pub fn push(&mut self, crumb: Crumb) {
++        self.0.push(crumb);
++    }
++
++    #[inline]
++    pub fn clear(&mut self) {
++        self.0.clear();
++    }
++
++    #[inline]
++    #[must_use]
++    pub const fn is_empty(&self) -> bool {
++        self.0.is_empty()
++    }
++
++    #[inline]
++    #[must_use]
++    pub const fn depth(&self) -> usize {
++        self.0.len()
++    }
++
++    #[inline]
++    pub fn iter(&self) -> impl Iterator<Item = &Crumb> {
++        self.0.iter()
++    }
++}
++
++#[derive(Debug, Clone)]
++pub struct Crumb {
++    pub name: Box<str>,
++    pub kind: lsp::SymbolKind,
++}
++
++impl From<&ThinDocumentSymbol> for Crumb {
++    #[inline]
++    fn from(symbol: &ThinDocumentSymbol) -> Self {
++        Self {
++            name: symbol.name.clone(),
++            kind: symbol.kind,
++        }
++    }
++}
++
+ #[derive(Debug, Clone, Default)]
+ pub struct DocumentColorSwatches {
+     pub color_swatches: Vec<InlineAnnotation>,
+@@ -734,7 +820,7 @@ fn take_with<T, F>(mut_ref: &mut T, f: F)
+     *mut_ref = f(mem::take(mut_ref));
+ }
+ 
+-use helix_lsp::{lsp, Client, LanguageServerId, LanguageServerName};
++use helix_lsp::{lsp, Client, LanguageServerId, LanguageServerName, OffsetEncoding};
+ use helix_stdx::Url;
+ 
+ impl Document {
+@@ -796,6 +882,9 @@ pub fn from(
+             previous_diagnostic_ids: HashMap::new(),
+             pull_diagnostic_controller: TaskController::new(),
+             document_link_controller: TaskController::new(),
++            symbols: None,
++            document_symbols_controller: TaskController::new(),
++            breadcrumbs: HashMap::new(),
+         }
+     }
+ 
+@@ -1488,6 +1577,10 @@ pub fn ensure_view_init(&mut self, view_id: ViewId) {
+         }
+ 
+         self.view_data_mut(view_id);
++
++        if self.config.load().breadcrumb.enable {
++            self.update_breadcrumbs_for_view(view_id);
++        }
+     }
+ 
+     /// Mark document as recent used for MRU sorting
+@@ -1495,12 +1588,13 @@ pub fn mark_as_focused(&mut self) {
+         self.focused_at = std::time::Instant::now();
+     }
+ 
+-    /// Remove a view's selection and inlay hints from this document.
++    /// Remove any views' data and state that is stored in the `Document`.
+     pub fn remove_view(&mut self, view_id: ViewId) {
+         self.selections.remove(&view_id);
+         self.view_data.remove(&view_id);
+         self.inlay_hints.remove(&view_id);
+         self.jump_labels.remove(&view_id);
++        self.breadcrumbs.remove(&view_id);
+         self.document_highlights.remove(&view_id);
+         self.document_highlight_controllers.remove(&view_id);
+         self.code_action_hints.remove(&view_id);
+@@ -2499,6 +2593,103 @@ pub fn remove_jump_labels(&mut self, view_id: ViewId) {
+         self.jump_labels.remove(&view_id);
+     }
+ 
++    #[inline(always)]
++    pub fn set_document_symbols(
++        &mut self,
++        symbols: Vec<DocumentSymbol>,
++        offset_encoding: OffsetEncoding,
++    ) {
++        self.symbols = Some(DocumentSymbolCache {
++            tree: {
++                let mut tree = Vec::with_capacity(symbols.len());
++                tree.extend(symbols.into_iter().map(ThinDocumentSymbol::from));
++                tree
++            },
++            offset_encoding,
++        });
++    }
++
++    #[inline]
++    pub fn clear_document_symbols(&mut self) {
++        self.symbols = None;
++        self.clear_breadcrumbs();
++    }
++
++    #[inline]
++    pub fn clear_breadcrumbs(&mut self) {
++        self.breadcrumbs.clear();
++    }
++
++    // For all non-hotpaths, we use this function to prevent code bloat.
++    #[inline(never)]
++    pub fn update_breadcrumbs_for_view(&mut self, view_id: ViewId) {
++        self.update_breadcrumbs_for_view_inlined(view_id);
++    }
++
++    // We want to make sure this is inlined in the hotpath (cursor position change).
++    #[inline(always)]
++    pub fn update_breadcrumbs_for_view_inlined(&mut self, view_id: ViewId) {
++        #[inline(always)]
++        const fn in_range(pos: lsp::Position, range: lsp::Range) -> bool {
++            // PERF:
++            // Line-based filtering is the most effective early exit indicator,
++            // so do first, before other evaluations; this should be friendly to
++            // the CPU branch predictor.
++            if pos.line < range.start.line || pos.line > range.end.line {
++                return false;
++            }
++
++            // Check if the cursor position is "in" the symbols "depth".
++            //
++            // In the context of breadcrumbs, this would be the difference between
++            // if the cursor is in an impl block or in an impl block and in a
++            // function of the impl block (`|` is the cursor):
++            //
++            // ```rust
++            // impl Foo {
++            //     f|n bar() {} // In `bar`: impl Foo > bar
++            //
++            //   | fn baz() {} // Not in `baz`: impl Foo
++            //
++            //     fn quux() {} | // Not in `quux`: impl Foo
++            // }
++            // ```
++            if pos.line == range.start.line && pos.character < range.start.character {
++                return false;
++            }
++            if pos.line == range.end.line && pos.character > range.end.character {
++                return false;
++            }
++
++            true
++        }
++
++        let Some(symbols) = self.symbols.as_ref() else {
++            return;
++        };
++
++        let position = self.position(view_id, symbols.offset_encoding);
++
++        let breadcrumb = {
++            let breadcrumb = self.breadcrumbs.entry(view_id).or_default();
++            breadcrumb.clear();
++            breadcrumb
++        };
++
++        let mut current = symbols.tree.as_slice();
++
++        while let Some(symbol) = current
++            .iter()
++            .find(|&symbol| in_range(position, symbol.range))
++        {
++            breadcrumb.push(Crumb::from(symbol));
++            match symbol.children.as_deref() {
++                Some(children) => current = children,
++                _ => break,
++            }
++        }
++    }
++
+     pub fn set_document_highlights(
+         &mut self,
+         view_id: ViewId,
+diff --git a/helix-view/src/editor.rs b/helix-view/src/editor.rs
+index 56a59d092..5f1638ff0 100644
+--- a/helix-view/src/editor.rs
++++ b/helix-view/src/editor.rs
+@@ -387,6 +387,8 @@ pub struct Config {
+     pub whitespace: WhitespaceConfig,
+     /// Persistently display open buffers along the top
+     pub bufferline: BufferLine,
++    /// Persistently display breadcrumb along the top of each view, below any bufferline.
++    pub breadcrumb: BreadcrumbConfig,
+     /// Vertical indent width guides.
+     pub indent_guides: IndentGuidesConfig,
+     /// Whether to color modes with different colors. Defaults to `false`.
+@@ -490,6 +492,23 @@ pub fn code_action_hint(&self) -> bool {
+     }
+ }
+ 
++#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
++#[serde(rename_all = "kebab-case")]
++pub struct BreadcrumbConfig {
++    pub enable: bool,
++    #[serde(default)]
++    pub path: BreadcrumbPathOptions,
++}
++
++#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
++#[serde(rename_all = "kebab-case")]
++pub enum BreadcrumbPathOptions {
++    #[default]
++    Full,
++    File,
++    None,
++}
++
+ #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
+ #[serde(rename_all = "kebab-case")]
+ pub struct BufferPickerConfig {
+@@ -1223,6 +1242,7 @@ fn default() -> Self {
+             rulers: Vec::new(),
+             whitespace: WhitespaceConfig::default(),
+             bufferline: BufferLine::default(),
++            breadcrumb: BreadcrumbConfig::default(),
+             indent_guides: IndentGuidesConfig::default(),
+             color_modes: false,
+             soft_wrap: SoftWrap {
+@@ -1825,6 +1845,7 @@ pub fn refresh_doc_language(&mut self, doc_id: DocumentId) {
+         let diagnostics = Editor::doc_diagnostics(&self.language_servers, &self.diagnostics, doc);
+         doc.replace_diagnostics(diagnostics, &[], None);
+         doc.reset_all_inlay_hints();
++        doc.clear_document_symbols();
+     }
+ 
+     /// Launch a language server for a given document
+diff --git a/helix-view/src/graphics.rs b/helix-view/src/graphics.rs
+index e4fa3e38a..7c0aedda9 100644
+--- a/helix-view/src/graphics.rs
++++ b/helix-view/src/graphics.rs
+@@ -200,6 +200,12 @@ pub fn clip_bottom(self, height: u16) -> Rect {
+         }
+     }
+ 
++    #[inline]
++    pub fn with_y(self, y: u16) -> Rect {
++        // new y may make area > u16::max_value, so use new()
++        Self::new(self.x, y, self.width, self.height)
++    }
++
+     pub fn with_height(self, height: u16) -> Rect {
+         // new height may make area > u16::max_value, so use new()
+         Self::new(self.x, self.y, self.width, height)
+diff --git a/helix-view/src/gutter.rs b/helix-view/src/gutter.rs
+index 176890ca2..cde457c24 100644
+--- a/helix-view/src/gutter.rs
++++ b/helix-view/src/gutter.rs
+@@ -242,9 +242,10 @@ pub fn breakpoints<'doc>(
+ 
+     let breakpoints = doc.path().and_then(|path| editor.breakpoints.get(path));
+ 
+-    let breakpoints = match breakpoints {
+-        Some(breakpoints) => breakpoints,
+-        None => return Box::new(move |_, _, _, _| None),
++    let breadcrumbs_enabled = editor.config().breadcrumb.enable;
++
++    let Some(breakpoints) = breakpoints else {
++        return Box::new(move |_, _, _, _| None);
+     };
+ 
+     Box::new(
+@@ -254,7 +255,7 @@ pub fn breakpoints<'doc>(
+             }
+             let breakpoint = breakpoints
+                 .iter()
+-                .find(|breakpoint| breakpoint.line == line)?;
++                .find(|breakpoint| breakpoint.line == line + usize::from(breadcrumbs_enabled))?;
+ 
+             let style = if breakpoint.condition.is_some() && breakpoint.log_message.is_some() {
+                 error.underline_style(UnderlineStyle::Line)
+diff --git a/helix-view/src/view.rs b/helix-view/src/view.rs
+index af0e243d4..80e44dc8c 100644
+--- a/helix-view/src/view.rs
++++ b/helix-view/src/view.rs
+@@ -203,11 +203,18 @@ pub fn add_to_history(&mut self, id: DocumentId) {
+     }
+ 
+     pub fn inner_area(&self, doc: &Document) -> Rect {
+-        self.area.clip_left(self.gutter_offset(doc)).clip_bottom(1) // -1 for statusline
++        self.area
++            .clip_top(self.breadcrumb_offset(doc))
++            .clip_left(self.gutter_offset(doc))
++            .clip_bottom(1) // -1 for statusline
+     }
+ 
+-    pub fn inner_height(&self) -> usize {
+-        self.area.clip_bottom(1).height.into() // -1 for statusline
++    pub fn inner_height(&self, doc: &Document) -> usize {
++        self.area
++            .clip_top(self.breadcrumb_offset(doc))
++            .clip_bottom(1) // -1 for statusline
++            .height
++            .into()
+     }
+ 
+     pub fn inner_width(&self, doc: &Document) -> u16 {
+@@ -232,7 +239,10 @@ pub fn gutter_offset(&self, doc: &Document) -> u16 {
+         }
+     }
+ 
+-    //
++    pub fn breadcrumb_offset(&self, doc: &Document) -> u16 {
++        u16::from(doc.config.load().breadcrumb.enable)
++    }
++
+     pub fn offset_coords_to_in_view(
+         &self,
+         doc: &Document,
+@@ -373,7 +383,7 @@ pub fn estimate_last_doc_line(&self, doc: &Document) -> usize {
+         let doc_text = doc.text().slice(..);
+         let line = doc_text.char_to_line(doc.view_offset(self.id).anchor.min(doc_text.len_chars()));
+         // Saturating subs to make it inclusive zero indexing.
+-        (line + self.inner_height())
++        (line + self.inner_height(doc))
+             .min(doc_text.len_lines())
+             .saturating_sub(1)
+     }
+-- 
+2.55.0
+
+
+From 96b154df06d32378a6bc5736b2ca0b5b5559d959 Mon Sep 17 00:00:00 2001
+From: Axlefublr <axlefublr.ls@gmail.com>
+Date: Tue, 17 Nov 2026 22:42:11 +0000
+Subject: [PATCH 09/15] breadcrumb: disable breadcrumb for scratch buffers
+
+Address review comments from Axlefublr:
+- https://github.com/helix-editor/helix/pull/15573#issuecomment-5494048974
+- https://github.com/helix-editor/helix/pull/15573#issuecomment-5494161193
+
+Co-authored-by: Awiteb <a@4rs.nl>
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/ui/editor.rs | 7 ++-----
+ helix-view/src/gutter.rs    | 2 +-
+ helix-view/src/view.rs      | 2 +-
+ 3 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index b849ce087..9e4581367 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -96,7 +96,7 @@ pub fn render_view(
+         let text_annotations = view.text_annotations(doc, Some(theme));
+         let mut decorations = DecorationManager::default();
+ 
+-        if config.breadcrumb.enable {
++        if config.breadcrumb.enable && doc.path().is_some() {
+             Self::render_breadcrumb(editor, doc, view, area.with_height(1), surface);
+         }
+ 
+@@ -754,7 +754,7 @@ fn draw_element(
+ 
+         let mut x = viewport.x.saturating_add(1);
+ 
+-        let separator = " > ";
++        let separator = ">";
+         let separator_style = editor.theme.get("ui.breadcrumb.separator");
+         let mut draw_separator = false;
+ 
+@@ -794,9 +794,6 @@ fn draw_element(
+ 
+                     x = draw_element(surface, viewport, x, &segment, style);
+                 }
+-            } else {
+-                // Handle `[scratch]`
+-                x = draw_element(surface, viewport, x, SCRATCH_BUFFER_NAME, style);
+             }
+         }
+ 
+diff --git a/helix-view/src/gutter.rs b/helix-view/src/gutter.rs
+index cde457c24..c7ef9095b 100644
+--- a/helix-view/src/gutter.rs
++++ b/helix-view/src/gutter.rs
+@@ -242,7 +242,7 @@ pub fn breakpoints<'doc>(
+ 
+     let breakpoints = doc.path().and_then(|path| editor.breakpoints.get(path));
+ 
+-    let breadcrumbs_enabled = editor.config().breadcrumb.enable;
++    let breadcrumbs_enabled = editor.config().breadcrumb.enable && doc.path().is_some();
+ 
+     let Some(breakpoints) = breakpoints else {
+         return Box::new(move |_, _, _, _| None);
+diff --git a/helix-view/src/view.rs b/helix-view/src/view.rs
+index 80e44dc8c..f46323538 100644
+--- a/helix-view/src/view.rs
++++ b/helix-view/src/view.rs
+@@ -240,7 +240,7 @@ pub fn gutter_offset(&self, doc: &Document) -> u16 {
+     }
+ 
+     pub fn breadcrumb_offset(&self, doc: &Document) -> u16 {
+-        u16::from(doc.config.load().breadcrumb.enable)
++        u16::from(doc.config.load().breadcrumb.enable && doc.path().is_some())
+     }
+ 
+     pub fn offset_coords_to_in_view(
+-- 
+2.55.0
+
+
+From b7807ea2e7beb4df397b26345270aedfd39ae04e Mon Sep 17 00:00:00 2001
+From: Awiteb <a@4rs.nl>
+Date: Wed, 18 Nov 2026 00:15:08 +0000
+Subject: [PATCH 10/15] breadcrumb: custom separator
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/ui/editor.rs | 2 +-
+ helix-view/src/editor.rs    | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index 9e4581367..a8adbf588 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -754,7 +754,7 @@ fn draw_element(
+ 
+         let mut x = viewport.x.saturating_add(1);
+ 
+-        let separator = ">";
++        let separator = config.breadcrumb.separator.as_deref().unwrap_or(" > ");
+         let separator_style = editor.theme.get("ui.breadcrumb.separator");
+         let mut draw_separator = false;
+ 
+diff --git a/helix-view/src/editor.rs b/helix-view/src/editor.rs
+index 5f1638ff0..1e93863db 100644
+--- a/helix-view/src/editor.rs
++++ b/helix-view/src/editor.rs
+@@ -492,12 +492,14 @@ pub fn code_action_hint(&self) -> bool {
+     }
+ }
+ 
+-#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
++#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone)]
+ #[serde(rename_all = "kebab-case")]
+ pub struct BreadcrumbConfig {
+     pub enable: bool,
+     #[serde(default)]
+     pub path: BreadcrumbPathOptions,
++    #[serde(default)]
++    pub separator: Option<String>,
+ }
+ 
+ #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
+-- 
+2.55.0
+
+
+From cf13065cac0041911eaeac53475ad4ebbf28f114 Mon Sep 17 00:00:00 2001
 From: Rolo <RoloEdits@gmail.com>
 Date: Wed, 18 Nov 2026 13:37:14 +0000
-Subject: [PATCH] feat!: add support for basic icons
+Subject: [PATCH 11/15] feat!: add support for basic icons
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -130,7 +1838,7 @@ Signed-off-by: Awiteb <a@4rs.nl>
  helix-core/Cargo.toml                         |    2 +-
  helix-core/src/doc_formatter.rs               |    5 +-
  helix-core/src/doc_formatter/test.rs          |    4 +-
- helix-lsp-types/src/completion.rs             |   37 +-
+ helix-lsp-types/src/completion.rs             |   35 +-
  helix-lsp-types/src/lib.rs                    |   36 +
  helix-stdx/Cargo.toml                         |    4 +-
  helix-stdx/src/lib.rs                         |    1 +
@@ -161,13 +1869,13 @@ Signed-off-by: Awiteb <a@4rs.nl>
  helix-view/src/gutter.rs                      |   71 +-
  helix-view/src/icons.rs                       | 1672 +++++++++++++++++
  helix-view/src/lib.rs                         |    1 +
- 36 files changed, 2911 insertions(+), 451 deletions(-)
+ 36 files changed, 2909 insertions(+), 451 deletions(-)
  create mode 100644 helix-stdx/src/string.rs
  create mode 100644 helix-stdx/src/string/stack.rs
  create mode 100644 helix-view/src/icons.rs
 
 diff --git a/Cargo.lock b/Cargo.lock
-index 5290e51c2..451fce72d 100644
+index 82f21e241..f63194e88 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
 @@ -71,6 +71,9 @@ name = "arrayvec"
@@ -221,7 +1929,7 @@ index 5290e51c2..451fce72d 100644
   "helix-core",
   "helix-dap",
   "helix-event",
-@@ -1770,6 +1779,7 @@ dependencies = [
+@@ -1771,6 +1780,7 @@ dependencies = [
   "serde",
   "serde_json",
   "slotmap",
@@ -229,7 +1937,7 @@ index 5290e51c2..451fce72d 100644
   "tempfile",
   "termina",
   "thiserror",
-@@ -2667,6 +2677,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -2668,6 +2678,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "3fb72c633efbaa2dd666986505016c32c3044395ceaf881518399d2f4127ee29"
  dependencies = [
   "autocfg",
@@ -267,7 +1975,7 @@ index 5e6a341f9..bca685c54 100644
  # unicode-width is changing width definitions
  # that both break our logic and disagree with common
 diff --git a/helix-core/src/doc_formatter.rs b/helix-core/src/doc_formatter.rs
-index 1c3bfec76..9d6078d8d 100644
+index 0761748ab..c92767408 100644
 --- a/helix-core/src/doc_formatter.rs
 +++ b/helix-core/src/doc_formatter.rs
 @@ -17,6 +17,7 @@
@@ -316,7 +2024,7 @@ index 21be2e535..c6789fafe 100644
              // use a prime number to allow lining up too often with repeat
              viewport_width: 17,
 diff --git a/helix-lsp-types/src/completion.rs b/helix-lsp-types/src/completion.rs
-index 7c006bdb6..f3760935b 100644
+index 71421b6f3..7ab07196d 100644
 --- a/helix-lsp-types/src/completion.rs
 +++ b/helix-lsp-types/src/completion.rs
 @@ -1,7 +1,7 @@
@@ -328,11 +2036,11 @@ index 7c006bdb6..f3760935b 100644
      TextDocumentPositionParams, TextDocumentRegistrationOptions, TextEdit, WorkDoneProgressOptions,
      WorkDoneProgressParams,
  };
-@@ -55,6 +55,41 @@ impl CompletionItemKind {
- }
- }
- 
-+impl CompletionItemKind {
+@@ -59,6 +59,39 @@ impl CompletionItemKind {
+     pub fn all() -> Vec<Self> {
+         (Self::TEXT.0..=Self::TYPE_PARAMETER.0).map(Self).collect()
+     }
++
 +    #[inline]
 +    #[must_use]
 +    pub const fn as_str(self) -> &'static str {
@@ -365,11 +2073,9 @@ index 7c006bdb6..f3760935b 100644
 +            _ => "",
 +        }
 +    }
-+}
-+
+ }
+ 
  #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
- #[serde(rename_all = "camelCase")]
- pub struct CompletionItemCapability {
 diff --git a/helix-lsp-types/src/lib.rs b/helix-lsp-types/src/lib.rs
 index afba1f2c7..0c233743f 100644
 --- a/helix-lsp-types/src/lib.rs
@@ -654,7 +2360,7 @@ index ea969f850..845be4f53 100644
  
      #[cfg(windows)]
 diff --git a/helix-term/src/commands.rs b/helix-term/src/commands.rs
-index d11ca4aa9..5c68cc926 100644
+index 53ad950bc..c4bdbdf7e 100644
 --- a/helix-term/src/commands.rs
 +++ b/helix-term/src/commands.rs
 @@ -48,17 +48,18 @@
@@ -686,7 +2392,7 @@ index d11ca4aa9..5c68cc926 100644
  };
  
  use std::{
-@@ -2561,6 +2563,7 @@ fn make_search_word_bounded(cx: &mut Context) {
+@@ -2571,6 +2573,7 @@ fn make_search_word_bounded(cx: &mut Context) {
      }
  }
  
@@ -694,7 +2400,7 @@ index d11ca4aa9..5c68cc926 100644
  fn global_search(cx: &mut Context) {
      #[derive(Debug)]
      struct FileResult<'a> {
-@@ -2584,21 +2587,54 @@ fn new(path: &Path, line_start: usize, line_end: usize) -> Self {
+@@ -2594,21 +2597,54 @@ fn new(path: &Path, line_start: usize, line_end: usize) -> Self {
      struct GlobalSearchConfig {
          smart_case: bool,
          file_picker_config: helix_view::editor::FilePickerConfig,
@@ -754,7 +2460,7 @@ index d11ca4aa9..5c68cc926 100644
          }),
          PickerColumn::hidden("contents"),
      ];
-@@ -3266,51 +3302,8 @@ fn file_explorer_in_current_directory(cx: &mut Context) {
+@@ -3276,51 +3312,8 @@ fn file_explorer_in_current_directory(cx: &mut Context) {
      }
  }
  
@@ -807,7 +2513,7 @@ index d11ca4aa9..5c68cc926 100644
      struct BufferMeta<'a> {
          id: DocumentId,
          path: Option<Cow<'a, Path>>,
-@@ -3319,6 +3312,8 @@ struct BufferMeta<'a> {
+@@ -3329,6 +3322,8 @@ struct BufferMeta<'a> {
          focused_at: std::time::Instant,
      }
  
@@ -816,7 +2522,7 @@ index d11ca4aa9..5c68cc926 100644
      let new_meta = |doc: &Document| BufferMeta {
          id: doc.id(),
          path: doc
-@@ -3352,8 +3347,31 @@ struct BufferMeta<'a> {
+@@ -3362,8 +3357,31 @@ struct BufferMeta<'a> {
              }
              flags.into()
          }),
@@ -850,7 +2556,7 @@ index d11ca4aa9..5c68cc926 100644
          }),
      ];
  
-@@ -3374,7 +3392,7 @@ struct BufferMeta<'a> {
+@@ -3384,7 +3402,7 @@ struct BufferMeta<'a> {
          columns,
          2,
          items,
@@ -859,7 +2565,7 @@ index d11ca4aa9..5c68cc926 100644
          |cx, meta, action| {
              cx.editor.switch(meta.id, action);
          },
-@@ -3388,9 +3406,11 @@ struct BufferMeta<'a> {
+@@ -3398,9 +3416,11 @@ struct BufferMeta<'a> {
          });
          Some((meta.id.into(), lines))
      });
@@ -871,7 +2577,7 @@ index d11ca4aa9..5c68cc926 100644
  fn jumplist_picker(cx: &mut Context) {
      struct JumpMeta<'a> {
          id: DocumentId,
-@@ -3428,8 +3448,39 @@ struct JumpMeta<'a> {
+@@ -3438,8 +3458,39 @@ struct JumpMeta<'a> {
  
      let columns = [
          ui::PickerColumn::new("id", |item: &JumpMeta, _| item.id.to_string().into()),
@@ -913,7 +2619,7 @@ index d11ca4aa9..5c68cc926 100644
          }),
          ui::PickerColumn::new("flags", |item: &JumpMeta, _| {
              let mut flags = Vec::new();
-@@ -3453,7 +3504,7 @@ struct JumpMeta<'a> {
+@@ -3463,7 +3514,7 @@ struct JumpMeta<'a> {
              .tree
              .views()
              .flat_map(|(view, _)| view.jumps.iter().rev().map(|jump| new_meta(view, jump))),
@@ -922,7 +2628,7 @@ index d11ca4aa9..5c68cc926 100644
          |cx, meta, action| {
              cx.editor.switch(meta.id, action);
              let config = cx.editor.config();
-@@ -3472,6 +3523,7 @@ struct JumpMeta<'a> {
+@@ -3482,6 +3533,7 @@ struct JumpMeta<'a> {
      cx.push_layer(Box::new(overlaid(picker)));
  }
  
@@ -930,7 +2636,7 @@ index d11ca4aa9..5c68cc926 100644
  fn changed_file_picker(cx: &mut Context) {
      pub struct FileChangeData {
          cwd: PathBuf,
-@@ -3497,14 +3549,47 @@ pub struct FileChangeData {
+@@ -3507,14 +3559,47 @@ pub struct FileChangeData {
  
      let columns = [
          PickerColumn::new("change", |change: &FileChange, data: &FileChangeData| {
@@ -986,7 +2692,7 @@ index d11ca4aa9..5c68cc926 100644
          }),
          PickerColumn::new("path", |change: &FileChange, data: &FileChangeData| {
              let display_path = |path: &PathBuf| {
-@@ -3513,7 +3598,8 @@ pub struct FileChangeData {
+@@ -3523,7 +3608,8 @@ pub struct FileChangeData {
                      .display()
                      .to_string()
              };
@@ -996,7 +2702,7 @@ index d11ca4aa9..5c68cc926 100644
                  FileChange::Untracked { path } => display_path(path),
                  FileChange::Modified { path } => display_path(path),
                  FileChange::Conflict { path } => display_path(path),
-@@ -3521,8 +3607,9 @@ pub struct FileChangeData {
+@@ -3531,8 +3617,9 @@ pub struct FileChangeData {
                  FileChange::Renamed { from_path, to_path } => {
                      format!("{} -> {}", display_path(from_path), display_path(to_path))
                  }
@@ -1008,7 +2714,7 @@ index d11ca4aa9..5c68cc926 100644
          }),
      ];
  
-@@ -3551,6 +3638,7 @@ pub struct FileChangeData {
+@@ -3561,6 +3648,7 @@ pub struct FileChangeData {
          },
      )
      .with_preview(|_editor, meta| Some((meta.path().into(), None)));
@@ -1016,7 +2722,7 @@ index d11ca4aa9..5c68cc926 100644
      let injector = picker.injector();
  
      let trust_full = cx
-@@ -3571,6 +3659,7 @@ pub struct FileChangeData {
+@@ -3581,6 +3669,7 @@ pub struct FileChangeData {
                  true
              }
          });
@@ -1025,7 +2731,7 @@ index d11ca4aa9..5c68cc926 100644
  }
  
 diff --git a/helix-term/src/commands/lsp.rs b/helix-term/src/commands/lsp.rs
-index 455b3eba7..f22029974 100644
+index 63c82704b..a2bfa791b 100644
 --- a/helix-term/src/commands/lsp.rs
 +++ b/helix-term/src/commands/lsp.rs
 @@ -9,7 +9,10 @@
@@ -1194,8 +2900,8 @@ index 455b3eba7..f22029974 100644
                  move |cx, item, action| {
                      jump_to_location(cx.editor, &item.location, action);
                  },
-@@ -451,10 +453,12 @@ fn nested_to_flat(
-     });
+@@ -479,10 +481,12 @@ fn flatten_workspace_symbols(resp: lsp::WorkspaceSymbolResponse) -> Vec<lsp::Sym
+     }
  }
  
 +#[allow(clippy::too_many_lines)]
@@ -1207,7 +2913,7 @@ index 455b3eba7..f22029974 100644
      if doc
          .language_servers_with_feature(LanguageServerFeature::WorkspaceSymbols)
          .count()
-@@ -467,7 +471,9 @@ pub fn workspace_symbol_picker(cx: &mut Context) {
+@@ -495,7 +499,9 @@ pub fn workspace_symbol_picker(cx: &mut Context) {
  
      let get_symbols = |pattern: &str, editor: &mut Editor, _data, injector: &Injector<_, _>| {
          let doc = doc!(editor);
@@ -1217,7 +2923,7 @@ index 455b3eba7..f22029974 100644
          let mut futures: FuturesUnordered<_> = doc
              .language_servers_with_feature(LanguageServerFeature::WorkspaceSymbols)
              .filter(|ls| seen_language_servers.insert(ls.id()))
-@@ -531,10 +537,30 @@ pub fn workspace_symbol_picker(cx: &mut Context) {
+@@ -556,10 +562,30 @@ pub fn workspace_symbol_picker(cx: &mut Context) {
          }
          .boxed()
      };
@@ -1251,7 +2957,7 @@ index 455b3eba7..f22029974 100644
          ui::PickerColumn::new("name", |item: &SymbolInformationItem, _| {
              item.symbol.name.as_str().into()
          })
-@@ -562,7 +588,7 @@ pub fn workspace_symbol_picker(cx: &mut Context) {
+@@ -587,7 +613,7 @@ pub fn workspace_symbol_picker(cx: &mut Context) {
          columns,
          1, // name column
          [],
@@ -1261,7 +2967,7 @@ index 455b3eba7..f22029974 100644
              jump_to_location(cx.editor, &item.location, action);
          },
 diff --git a/helix-term/src/commands/typed.rs b/helix-term/src/commands/typed.rs
-index 57c78782f..00579a6b9 100644
+index b925cc416..487dc535b 100644
 --- a/helix-term/src/commands/typed.rs
 +++ b/helix-term/src/commands/typed.rs
 @@ -1,6 +1,7 @@
@@ -1272,7 +2978,7 @@ index 57c78782f..00579a6b9 100644
  
  use crate::job::Job;
  
-@@ -1099,6 +1100,7 @@ fn force_cquit(cx: &mut compositor::Context, args: Args, event: PromptEvent) ->
+@@ -1101,6 +1102,7 @@ fn force_cquit(cx: &mut compositor::Context, args: Args, event: PromptEvent) ->
  
  fn theme(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow::Result<()> {
      let true_color = cx.editor.config.load().true_color || crate::true_color();
@@ -1280,7 +2986,7 @@ index 57c78782f..00579a6b9 100644
      match event {
          PromptEvent::Abort => {
              cx.editor.unset_theme_preview()?;
-@@ -1112,9 +1114,9 @@ fn theme(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow
+@@ -1114,9 +1116,9 @@ fn theme(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow
                      if !(true_color || theme.is_16_color()) {
                          bail!("Unsupported theme: theme requires true color support");
                      }
@@ -1293,7 +2999,7 @@ index 57c78782f..00579a6b9 100644
          }
          PromptEvent::Validate => {
              if let Some(theme_name) = args.first() {
-@@ -1126,14 +1128,14 @@ fn theme(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow
+@@ -1128,14 +1130,14 @@ fn theme(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow
                  if !(true_color || theme.is_16_color()) {
                      bail!("Unsupported theme: theme requires true color support");
                  }
@@ -1311,7 +3017,7 @@ index 57c78782f..00579a6b9 100644
      Ok(())
  }
 diff --git a/helix-term/src/config.rs b/helix-term/src/config.rs
-index 3e61b8012..3dcd611d6 100644
+index 13258e347..b2aaba31b 100644
 --- a/helix-term/src/config.rs
 +++ b/helix-term/src/config.rs
 @@ -1,12 +1,17 @@
@@ -1333,15 +3039,15 @@ index 3e61b8012..3dcd611d6 100644
  use toml::de::Error as TomlError;
  
  #[derive(Debug, Clone, PartialEq)]
-@@ -22,6 +27,7 @@ pub struct ConfigRaw {
-     pub theme: Option<theme::Config>,
+@@ -23,6 +28,7 @@ pub struct ConfigRaw {
+     #[serde(default, deserialize_with = "deserialize_mode_keymaps")]
      pub keys: Option<HashMap<Mode, KeyTrie>>,
      pub editor: Option<toml::Value>,
 +    pub icons: Option<toml::Value>,
  }
  
- impl Default for Config {
-@@ -64,6 +70,7 @@ pub fn load(
+ /// Errors on `[keys]` entries like `normal = "move_char_left"`: each mode must be a table of
+@@ -86,6 +92,7 @@ pub fn load(
              global.and_then(|file| toml::from_str(file).map_err(ConfigLoadError::BadConfig));
          let local_config: Result<ConfigRaw, ConfigLoadError> =
              local.and_then(|file| toml::from_str(&file).map_err(ConfigLoadError::BadConfig));
@@ -1349,7 +3055,7 @@ index 3e61b8012..3dcd611d6 100644
          let res = match (global_config, local_config) {
              (Ok(global), Ok(local)) => {
                  let mut keys = keymap::default();
-@@ -84,6 +91,18 @@ pub fn load(
+@@ -106,6 +113,18 @@ pub fn load(
                          .map_err(ConfigLoadError::BadConfig)?,
                  };
  
@@ -1368,7 +3074,7 @@ index 3e61b8012..3dcd611d6 100644
                  Config {
                      theme: local.theme.or(global.theme),
                      keys,
-@@ -100,6 +119,14 @@ pub fn load(
+@@ -122,6 +141,14 @@ pub fn load(
                  if let Some(keymap) = config.keys {
                      merge_keys(&mut keys, keymap);
                  }
@@ -1422,7 +3128,7 @@ index 10082ec72..c0975a26b 100644
              (color.red * 255.) as u8,
              (color.green * 255.) as u8,
 diff --git a/helix-term/src/ui/completion.rs b/helix-term/src/ui/completion.rs
-index 0bf00cea9..2c1af5224 100644
+index 4af50f121..d719200bf 100644
 --- a/helix-term/src/ui/completion.rs
 +++ b/helix-term/src/ui/completion.rs
 @@ -9,6 +9,9 @@
@@ -1621,7 +3327,7 @@ index 0bf00cea9..2c1af5224 100644
  
              macro_rules! language_server {
 diff --git a/helix-term/src/ui/document.rs b/helix-term/src/ui/document.rs
-index 8ab39decd..54e6d1b76 100644
+index debb5232b..4b2e2e60e 100644
 --- a/helix-term/src/ui/document.rs
 +++ b/helix-term/src/ui/document.rs
 @@ -7,8 +7,11 @@
@@ -1783,7 +3489,7 @@ index 8ab39decd..54e6d1b76 100644
      /// Draws a single `grapheme` at the current render position with a specified `style`.
      pub fn draw_decoration_grapheme(
          &mut self,
-@@ -413,12 +437,17 @@ pub fn draw_indent_guides(&mut self, indent_level: usize, mut row: u16) {
+@@ -415,12 +439,17 @@ pub fn draw_indent_guides(&mut self, indent_level: usize, mut row: u16) {
          ) / self.indent_width as usize;
  
          for i in self.starting_indent..end_indent {
@@ -1806,7 +3512,7 @@ index 8ab39decd..54e6d1b76 100644
      }
  
 diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
-index 74a00a650..9ea966259 100644
+index a8adbf588..1ef668f6d 100644
 --- a/helix-term/src/ui/editor.rs
 +++ b/helix-term/src/ui/editor.rs
 @@ -28,6 +28,7 @@
@@ -1816,7 +3522,7 @@ index 74a00a650..9ea966259 100644
 +    icons::ICONS,
      input::{KeyEvent, MouseButton, MouseEvent, MouseEventKind},
      keyboard::{KeyCode, KeyModifiers},
-     Document, Editor, Theme, View,
+     Document, Editor, Theme, View, ViewId,
 @@ -260,15 +261,16 @@ pub fn render_rulers(
          surface: &mut Surface,
          theme: &Theme,
@@ -1983,7 +3689,7 @@ index 74a00a650..9ea966259 100644
          }
      }
 diff --git a/helix-term/src/ui/mod.rs b/helix-term/src/ui/mod.rs
-index 992d7a3f0..3953bb9e1 100644
+index dc7cd1d65..ac00c9e6a 100644
 --- a/helix-term/src/ui/mod.rs
 +++ b/helix-term/src/ui/mod.rs
 @@ -21,7 +21,7 @@
@@ -1999,8 +3705,8 @@ index 992d7a3f0..3953bb9e1 100644
  pub use spinner::{ProgressSpinners, Spinner};
  pub use text::Text;
  
--use helix_view::Editor;
-+use helix_view::{Editor, Theme};
+-use helix_view::{view::Jump, Editor};
++use helix_view::{view::Jump, Editor, Theme};
  use tui::text::{Span, Spans};
 +use tui::widgets::Cell;
  
@@ -2010,7 +3716,7 @@ index 992d7a3f0..3953bb9e1 100644
  use std::{error::Error, path::PathBuf};
  
  struct Utf8PathBuf {
-@@ -213,10 +216,11 @@ fn get_excluded_types() -> ignore::types::Types {
+@@ -221,10 +224,11 @@ fn get_excluded_types() -> ignore::types::Types {
  #[derive(Debug)]
  pub struct FilePickerData {
      root: PathBuf,
@@ -2023,7 +3729,7 @@ index 992d7a3f0..3953bb9e1 100644
  pub fn file_picker(editor: &Editor, root: PathBuf) -> FilePicker {
      use ignore::WalkBuilder;
      use std::time::Instant;
-@@ -224,7 +228,7 @@ pub fn file_picker(editor: &Editor, root: PathBuf) -> FilePicker {
+@@ -232,7 +236,7 @@ pub fn file_picker(editor: &Editor, root: PathBuf) -> FilePicker {
      let config = editor.config();
      let data = FilePickerData {
          root: root.clone(),
@@ -2032,7 +3738,7 @@ index 992d7a3f0..3953bb9e1 100644
      };
  
      let now = Instant::now();
-@@ -261,20 +265,37 @@ pub fn file_picker(editor: &Editor, root: PathBuf) -> FilePicker {
+@@ -269,20 +273,37 @@ pub fn file_picker(editor: &Editor, root: PathBuf) -> FilePicker {
      let columns = [PickerColumn::new(
          "path",
          |item: &PathBuf, data: &FilePickerData| {
@@ -2076,7 +3782,7 @@ index 992d7a3f0..3953bb9e1 100644
          },
      )];
      let picker = Picker::new(columns, 0, [], data, move |cx, path: &PathBuf, action| {
-@@ -313,28 +334,59 @@ pub fn file_picker(editor: &Editor, root: PathBuf) -> FilePicker {
+@@ -321,28 +342,59 @@ pub fn file_picker(editor: &Editor, root: PathBuf) -> FilePicker {
      picker
  }
  
@@ -2143,7 +3849,7 @@ index 992d7a3f0..3953bb9e1 100644
          move |cx, (path, is_dir): &(PathBuf, bool), action| {
              if *is_dir {
                  let new_root = helix_stdx::path::normalize(path);
-@@ -349,10 +401,9 @@ pub fn file_explorer(root: PathBuf, editor: &Editor) -> Result<FileExplorer, std
+@@ -357,10 +409,9 @@ pub fn file_explorer(root: PathBuf, editor: &Editor) -> Result<FileExplorer, std
                  });
                  cx.jobs.callback(callback);
              } else if let Err(e) = cx.editor.open(path, action) {
@@ -2158,7 +3864,7 @@ index 992d7a3f0..3953bb9e1 100644
                  cx.editor.set_error(err);
              }
 diff --git a/helix-term/src/ui/picker.rs b/helix-term/src/ui/picker.rs
-index cccc9fc5b..a562ce2ce 100644
+index e1eaf5d6d..40b43b5a0 100644
 --- a/helix-term/src/ui/picker.rs
 +++ b/helix-term/src/ui/picker.rs
 @@ -32,7 +32,7 @@
@@ -2178,7 +3884,7 @@ index cccc9fc5b..a562ce2ce 100644
      theme::Style,
      view::ViewPosition,
      Document, DocumentId, Editor,
-@@ -85,7 +86,7 @@ fn from(v: DocumentId) -> Self {
+@@ -88,7 +89,7 @@ fn from(v: DocumentId) -> Self {
  
  pub enum CachedPreview {
      Document(Box<Document>),
@@ -2187,7 +3893,7 @@ index cccc9fc5b..a562ce2ce 100644
      Binary,
      LargeFile,
      NotFound,
-@@ -107,7 +108,7 @@ fn document(&self) -> Option<&Document> {
+@@ -110,7 +111,7 @@ fn document(&self) -> Option<&Document> {
          }
      }
  
@@ -2196,7 +3902,7 @@ index cccc9fc5b..a562ce2ce 100644
          match self {
              Preview::Cached(CachedPreview::Directory(dir_content)) => Some(dir_content),
              _ => None,
-@@ -611,22 +612,7 @@ fn get_preview<'picker, 'editor>(
+@@ -614,22 +615,7 @@ fn get_preview<'picker, 'editor>(
                      .and_then(|metadata| {
                          if metadata.is_dir() {
                              let files = super::directory_content(&path, editor)?;
@@ -2220,7 +3926,7 @@ index cccc9fc5b..a562ce2ce 100644
                          } else if metadata.is_file() {
                              if metadata.len() > MAX_FILE_SIZE_FOR_PREVIEW {
                                  return Ok(CachedPreview::LargeFile);
-@@ -879,17 +865,15 @@ fn render_picker(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context)
+@@ -882,17 +868,15 @@ fn render_picker(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context)
          );
      }
  
@@ -2244,7 +3950,7 @@ index cccc9fc5b..a562ce2ce 100644
          let inner = BLOCK.inner(area);
          // 1 column gap on either side
          let margin = Margin::horizontal(1);
-@@ -907,17 +891,75 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
+@@ -910,17 +894,75 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
                  }
                  _ => {
                      if let Some(dir_content) = preview.dir_content() {
@@ -2329,7 +4035,7 @@ index cccc9fc5b..a562ce2ce 100644
                          }
                          return;
                      }
-@@ -925,7 +967,15 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
+@@ -928,7 +970,15 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
                      let alt_text = preview.placeholder();
                      let x = inner.x + inner.width.saturating_sub(alt_text.len() as u16) / 2;
                      let y = inner.y + inner.height / 2;
@@ -2346,7 +4052,7 @@ index cccc9fc5b..a562ce2ce 100644
                      return;
                  }
              };
-@@ -962,7 +1012,9 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
+@@ -965,7 +1015,9 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
  
              let syntax_highlighter =
                  EditorView::doc_syntax_highlighter(doc, offset.anchor, area.height, &loader);
@@ -2356,7 +4062,7 @@ index cccc9fc5b..a562ce2ce 100644
              if doc
                  .language_config()
                  .and_then(|config| config.rainbow_brackets)
-@@ -993,6 +1045,7 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
+@@ -996,6 +1048,7 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
                      .theme
                      .try_get("ui.highlight")
                      .unwrap_or_else(|| cx.editor.theme.get("ui.selection"));
@@ -2364,7 +4070,7 @@ index cccc9fc5b..a562ce2ce 100644
                  let draw_highlight = move |renderer: &mut TextRenderer, pos: LinePos| {
                      if (start..=end).contains(&pos.doc_line) {
                          let area = Rect::new(
-@@ -1001,9 +1054,10 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
+@@ -1004,9 +1057,10 @@ fn render_preview(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context
                              renderer.viewport.width,
                              1,
                          );
@@ -2813,10 +4519,10 @@ index a9c36503a..78d057465 100644
  #[derive(Debug, Default, Clone, PartialEq, Eq)]
  pub struct Spans<'a>(pub Vec<Span<'a>>);
 diff --git a/helix-view/Cargo.toml b/helix-view/Cargo.toml
-index c4d6c4e38..36634ce0f 100644
+index 4d5ae6060..6a0e570fa 100644
 --- a/helix-view/Cargo.toml
 +++ b/helix-view/Cargo.toml
-@@ -57,6 +57,8 @@ parking_lot.workspace = true
+@@ -58,6 +58,8 @@ parking_lot.workspace = true
  thiserror.workspace = true
  
  kstring = "2.0"
@@ -2847,7 +4553,7 @@ index dc1414625..259ba59eb 100644
              viewport_width: width,
              soft_wrap_at_text_width: true,
 diff --git a/helix-view/src/document.rs b/helix-view/src/document.rs
-index 456f1d489..9c3464816 100644
+index 2088e0594..8f3f1f562 100644
 --- a/helix-view/src/document.rs
 +++ b/helix-view/src/document.rs
 @@ -1,5 +1,5 @@
@@ -2873,7 +4579,7 @@ index 456f1d489..9c3464816 100644
  use crate::{
      editor::Config,
      events::{DocumentDidChange, SelectionDidChange},
-@@ -2491,7 +2493,9 @@ pub fn text_width(&self) -> usize {
+@@ -2522,7 +2524,9 @@ pub fn text_width(&self) -> usize {
  
      pub fn text_format(&self, mut viewport_width: u16, theme: Option<&Theme>) -> TextFormat {
          let config = self.config.load();
@@ -2883,7 +4589,7 @@ index 456f1d489..9c3464816 100644
          let mut soft_wrap_at_text_width = self
              .language_config()
              .and_then(|config| {
-@@ -2502,47 +2506,62 @@ pub fn text_format(&self, mut viewport_width: u16, theme: Option<&Theme>) -> Tex
+@@ -2533,47 +2537,62 @@ pub fn text_format(&self, mut viewport_width: u16, theme: Option<&Theme>) -> Tex
              })
              .or(config.soft_wrap.wrap_at_text_width)
              .unwrap_or(false);
@@ -4926,19 +6632,835 @@ index ab3ec32fc..a238a5fed 100644
  pub mod info;
  pub mod input;
  pub mod keyboard;
+-- 
+2.55.0
 
-base-commit: 49986e6674e5658164a88f599ec8c822e62ad0db
-prerequisite-patch-id: 5636a0ec709859fdc00e9d96afbdeb9add6aea80
-prerequisite-patch-id: fd9dab7c8340c011ec136b81b7cce303041a9a65
-prerequisite-patch-id: 6de9c7713b5994bc7e5ae94d05eaac01e10f4d96
-prerequisite-patch-id: 5c635688280738885ab2e2cd3daa71849e70d068
-prerequisite-patch-id: 0a6a127e2682d158a68382f9f231ccef3d459fcf
-prerequisite-patch-id: 61d3a301c577ffd32bc425c4368c36a3a890d57a
-prerequisite-patch-id: 4aebaf0cdfb0b8494819c80c9712ae87ce1f1d7c
-prerequisite-patch-id: d8799e4571538b7128cc6ebbabcd9046fae2da04
-prerequisite-patch-id: a4acc9b80f129a5d5eda84a032c48555a5371d1c
-prerequisite-patch-id: 7d77cbb98505f9602fa4c8cf5e6e120870c0c884
-prerequisite-patch-id: 31b8d970943a0a0ea10a5a3ca63ef1a9d8ddf837
+
+From d522c5339287af5297a6977b3ce43f66c81b7c2d Mon Sep 17 00:00:00 2001
+From: Awiteb <a@4rs.nl>
+Date: Wed, 18 Nov 2026 19:50:51 +0000
+Subject: [PATCH 12/15] feat: add icons to breadcrumb navigation bar
+
+Based-on: https://github.com/RoloEdits/helix/commit/fbf1e42689d53fd42e789461dcd063516b05ec27
+Co-authored-by: Rolo <RoloEdits@gmail.com>
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/ui/editor.rs | 49 ++++++++++++++++++++++++++++++++++---
+ helix-view/src/icons.rs     |  4 +--
+ 2 files changed, 48 insertions(+), 5 deletions(-)
+
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index 1ef668f6d..c0f39a0f4 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -23,6 +23,7 @@
+     visual_offset_from_block, Change, Position, Range, Selection, Transaction,
+ };
+ use helix_lsp::lsp::SymbolKind;
++use helix_stdx::stack_format;
+ use helix_view::{
+     annotations::diagnostics::DiagnosticFilter,
+     document::{Mode, SCRATCH_BUFFER_NAME},
+@@ -807,7 +808,8 @@ fn draw_element(
+         }
+ 
+         let config = editor.config();
+-
++        let theme = editor.theme.as_ref();
++        let icons = ICONS.load();
+         let style = editor
+             .theme
+             .try_get_exact("ui.breadcrumb")
+@@ -849,6 +851,33 @@ fn draw_element(
+                     let segment = component.as_os_str().to_string_lossy();
+                     let is_directory = components.peek().is_some();
+ 
++                    if !is_directory {
++                        if let Some(icon) = icons
++                            .fs()
++                            .file()
++                            .and_then(|files| files.get(segment.as_ref()))
++                        {
++                            let style = theme
++                                .try_get_exact(format!("icons.file.{segment}").as_str())
++                                .or_else(|| {
++                                    path.extension().map(|ext| ext.display()).and_then(|ext| {
++                                        theme.try_get_exact(
++                                            stack_format!("icons.file.{ext}").as_str(),
++                                        )
++                                    })
++                                })
++                                .unwrap_or_else(|| icon.style());
++
++                            x = draw_element(
++                                surface,
++                                viewport,
++                                x,
++                                icon.with_padding(0, 2).glyph().as_str(),
++                                style,
++                            );
++                        }
++                    }
++
+                     let style = if is_directory {
+                         editor.theme.get("ui.text.directory")
+                     } else {
+@@ -869,7 +898,7 @@ fn draw_element(
+                     draw_separator = true;
+                 }
+ 
+-                let style = match symbol.kind {
++                let symbol_style = match symbol.kind {
+                     SymbolKind::MODULE
+                     | SymbolKind::NAMESPACE
+                     | SymbolKind::PACKAGE => editor.theme.get("namespace"),
+@@ -902,7 +931,21 @@ fn draw_element(
+                     _ => style,
+                 };
+ 
+-                x = draw_element(surface, viewport, x, symbol.name.as_ref(), style);
++                let kind = symbol.kind.as_str();
++                let icon_style = editor
++                    .theme
++                    .try_get_exact(stack_format!("icons.kind.{kind}").as_str())
++                    .unwrap_or(symbol_style);
++                if let Some(icon) = icons.kind().get(kind) {
++                    x = draw_element(
++                        surface,
++                        viewport,
++                        x,
++                        icon.with_padding(0, 2).glyph().as_str(),
++                        icon_style,
++                    );
++                }
++                x = draw_element(surface, viewport, x, symbol.name.as_ref(), symbol_style);
+             }
+         }
+     }
+diff --git a/helix-view/src/icons.rs b/helix-view/src/icons.rs
+index 323cb2eeb..a84a612df 100644
+--- a/helix-view/src/icons.rs
++++ b/helix-view/src/icons.rs
+@@ -1648,8 +1648,8 @@ pub fn readonly(&self) -> Icon {
+     #[inline]
+     #[must_use]
+     pub fn modified(&self) -> Icon {
+-        // TODO: ●?
+-        self.modified.unwrap_or_else(|| icon!("[+]"))
++        self.modified
++            .unwrap_or_else(|| icon!(glyph: "●", padding: [1, 1]))
+     }
+ 
+     #[inline]
+-- 
+2.55.0
+
+
+From d3a95f0c26af196bb9dd2101a3209e5b41aa563c Mon Sep 17 00:00:00 2001
+From: Awiteb <a@4rs.nl>
+Date: Wed, 18 Nov 2026 21:09:43 +0000
+Subject: [PATCH 13/15] bufferline: fix padding
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-term/src/ui/editor.rs | 41 ++++++++++++++++++-------------------
+ helix-view/src/icons.rs     | 10 +++++++++
+ 2 files changed, 30 insertions(+), 21 deletions(-)
+
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index c0f39a0f4..d4b1ba2a0 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -735,7 +735,7 @@ pub fn render_bufferline(editor: &Editor, viewport: Rect, surface: &mut Surface)
+                         .set_stringn(
+                             x,
+                             viewport.y,
+-                            &icon.glyph(),
++                            &icon.with_padding_left(0).glyph(),
+                             remaining as usize,
+                             icon.style(),
+                         )
+@@ -747,38 +747,37 @@ pub fn render_bufferline(editor: &Editor, viewport: Rect, surface: &mut Surface)
+                 }
+             }
+ 
++            // If it is modified, add the indicator, otherwise empty string
++            let modified = icons.ui().indicator().modified().with_no_padding().glyph();
++            let modification_indicator = if doc.is_modified() {
++                modified.as_str()
++            } else {
++                " "
++            };
++
+             // PERF:
+             // Rather than using `format!{"{name} "}`, we can save an allocation.
+-            for element in [name, " "] {
++            for (idx, element) in [name, modification_indicator, "  "].iter().enumerate() {
+                 let used = viewport.x.saturating_sub(x);
+                 let remaining = surface.area.width.saturating_sub(used);
+ 
++                // Style for the modification indicator
++                let style = if idx == 1 {
++                    theme
++                        .try_get_exact("ui.statusline.file-modification-indicator")
++                        .unwrap_or(base)
++                } else {
++                    base
++                };
++
+                 x = surface
+-                    .set_stringn(x, viewport.y, element, remaining as usize, base)
++                    .set_stringn(x, viewport.y, element, remaining as usize, style)
+                     .0;
+ 
+                 if x >= surface.area.right() {
+                     break;
+                 }
+             }
+-
+-            if doc.is_modified() {
+-                let modified = icons.ui().indicator().modified();
+-                // PERF:
+-                // Rather than using `format!{"{name} "}`, we can save an allocation.
+-                for element in [modified.glyph().as_str(), " "] {
+-                    let used = viewport.x.saturating_sub(x);
+-                    let remaining = surface.area.width.saturating_sub(used);
+-
+-                    x = surface
+-                        .set_stringn(x, viewport.y, element, remaining as usize, base)
+-                        .0;
+-
+-                    if x >= surface.area.right() {
+-                        break;
+-                    }
+-                }
+-            }
+         }
+     }
+ 
+diff --git a/helix-view/src/icons.rs b/helix-view/src/icons.rs
+index a84a612df..dab4dc4ea 100644
+--- a/helix-view/src/icons.rs
++++ b/helix-view/src/icons.rs
+@@ -200,6 +200,16 @@ pub const fn with_padding(mut self, left: u8, right: u8) -> Self {
+         self
+     }
+ 
++    #[inline]
++    #[must_use]
++    pub fn with_padding_left(mut self, left: u8) -> Self {
++        self.padding = Some(Padding {
++            left,
++            right: self.padding.map(|p| p.right).unwrap_or_default(),
++        });
++        self
++    }
++
+     #[inline]
+     #[must_use]
+     pub const fn with_no_padding(self) -> Self {
+-- 
+2.55.0
+
+
+From 73560ea169a78e3692e3064b7ca273ad52345a43 Mon Sep 17 00:00:00 2001
+From: Awiteb <a@4rs.nl>
+Date: Thu, 19 Nov 2026 10:46:57 +0000
+Subject: [PATCH 14/15] feat: style icons and kinds in completion menu
+
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-lsp-types/src/lib.rs      | 65 ++++++++++++++++++++++++++++++++-
+ helix-term/src/ui/completion.rs | 62 +++++++++++++++++++------------
+ helix-term/src/ui/editor.rs     | 37 +++----------------
+ helix-term/src/ui/menu.rs       | 18 +++++++--
+ helix-tui/src/widgets/table.rs  |  2 +-
+ helix-view/src/icons.rs         |  2 +-
+ 6 files changed, 124 insertions(+), 62 deletions(-)
+
+diff --git a/helix-lsp-types/src/lib.rs b/helix-lsp-types/src/lib.rs
+index 0c233743f..78ebe86da 100644
+--- a/helix-lsp-types/src/lib.rs
++++ b/helix-lsp-types/src/lib.rs
+@@ -19,7 +19,7 @@
+ 
+ use bitflags::bitflags;
+ 
+-use std::{collections::HashMap, fmt::Debug};
++use std::{collections::HashMap, fmt::Debug, str::FromStr};
+ 
+ pub use helix_stdx::Url;
+ use serde::{de, de::Error as Error_, Deserialize, Serialize};
+@@ -1273,6 +1273,43 @@ impl SymbolKind {
+ }
+ }
+ 
++impl FromStr for SymbolKind {
++    type Err = ();
++
++    #[inline]
++    fn from_str(s: &str) -> Result<Self, Self::Err> {
++        match s {
++            "file" => Ok(Self::FILE),
++            "module" => Ok(Self::MODULE),
++            "namespace" => Ok(Self::NAMESPACE),
++            "package" => Ok(Self::PACKAGE),
++            "class" => Ok(Self::CLASS),
++            "method" => Ok(Self::METHOD),
++            "property" => Ok(Self::PROPERTY),
++            "field" => Ok(Self::FIELD),
++            "construct" => Ok(Self::CONSTRUCTOR),
++            "enum" => Ok(Self::ENUM),
++            "interface" => Ok(Self::INTERFACE),
++            "function" => Ok(Self::FUNCTION),
++            "variable" => Ok(Self::VARIABLE),
++            "constant" => Ok(Self::CONSTANT),
++            "string" => Ok(Self::STRING),
++            "number" => Ok(Self::NUMBER),
++            "boolean" => Ok(Self::BOOLEAN),
++            "array" => Ok(Self::ARRAY),
++            "object" => Ok(Self::OBJECT),
++            "key" => Ok(Self::KEY),
++            "null" => Ok(Self::NULL),
++            "enum_member" => Ok(Self::ENUM_MEMBER),
++            "struct" => Ok(Self::STRUCT),
++            "event" => Ok(Self::EVENT),
++            "operator" => Ok(Self::OPERATOR),
++            "type_param" => Ok(Self::TYPE_PARAMETER),
++            _ => Err(()),
++        }
++    }
++}
++
+ impl SymbolKind {
+     pub fn all() -> Vec<Self> {
+         (1..=26).map(Self).collect()
+@@ -1313,6 +1350,32 @@ pub const fn as_str(self) -> &'static str {
+             _ => "",
+         }
+     }
++
++    /// Maps this symbol kind to a syntax-highlighting style name.
++    /// Returns `None` for kinds without a canonical style (e.g. `FILE`).
++    #[inline]
++    pub const fn style_name(&self) -> Option<&'static str> {
++        match *self {
++            Self::MODULE | Self::NAMESPACE | Self::PACKAGE => Some("namespace"),
++            Self::OBJECT | Self::STRUCT | Self::INTERFACE | Self::CLASS => Some("type"),
++            Self::METHOD => Some("function.method"),
++            Self::FUNCTION => Some("function"),
++            Self::ENUM => Some("type.enum"),
++            Self::ENUM_MEMBER => Some("type.enum.variant"),
++            Self::FIELD | Self::PROPERTY => Some("variable.other.member"),
++            Self::VARIABLE => Some("variable"),
++            Self::CONSTANT => Some("constant"),
++            Self::CONSTRUCTOR => Some("constructor"),
++            Self::STRING => Some("string"),
++            Self::NUMBER => Some("constant.numeric"),
++            Self::BOOLEAN => Some("constant.builtin.boolean"),
++            Self::ARRAY => Some("punctuation.bracket"),
++            Self::KEY => Some("label"),
++            Self::NULL => Some("constant.builtin"),
++            Self::TYPE_PARAMETER => Some("type.parameter"),
++            _ => None,
++        }
++    }
+ }
+ 
+ /// Specific capabilities for the `SymbolKind` in the `workspace/symbol` request.
+diff --git a/helix-term/src/ui/completion.rs b/helix-term/src/ui/completion.rs
+index d719200bf..00907e36a 100644
+--- a/helix-term/src/ui/completion.rs
++++ b/helix-term/src/ui/completion.rs
+@@ -8,6 +8,7 @@
+ };
+ use helix_core::snippets::{ActiveSnippet, RenderedSnippet, Snippet};
+ use helix_core::{self as core, chars, fuzzy::MATCHER, Change, Transaction};
++use helix_lsp::lsp::SymbolKind;
+ use helix_lsp::{lsp, util, OffsetEncoding};
+ use helix_stdx::stack_format;
+ use helix_view::icons::ICONS;
+@@ -26,6 +27,7 @@
+ use tui::{buffer::Buffer as Surface, text::Span};
+ 
+ use std::cmp::Reverse;
++use std::str::FromStr;
+ use std::sync::Arc;
+ 
+ impl menu::Item for CompletionItem {
+@@ -90,27 +92,32 @@ fn format(&self, theme: &Self::Data) -> menu::Row<'_> {
+         let name = &kind.content;
+         let is_folder = kind.content == "folder";
+ 
+-        let label = Span::styled(
+-            label,
+-            if deprecated {
+-                Style::default().add_modifier(Modifier::CROSSED_OUT)
+-            } else if is_folder {
+-                theme.get("ui.text.directory")
+-            } else {
+-                Style::default()
+-            },
+-        );
+-
+-        if let Some(color) = color {
+-            menu::Row::new([
+-                menu::Cell::from(Span::styled(icons.kind().color().to_string(), color)),
+-                menu::Cell::from(label),
+-                menu::Cell::from(kind),
+-            ])
+-        } else if let Some(icon) = icons.kind().get(name) {
++        let label_style = if deprecated {
++            Style::default()
++                .fg(theme
++                    .try_get_exact("warning")
++                    .unwrap_or_default()
++                    .fg
++                    .unwrap_or(Color::Yellow))
++                .add_modifier(Modifier::CROSSED_OUT)
++        } else if is_folder {
++            theme.get("ui.text.directory")
++        } else {
++            Style::default()
++        };
++        let symbol_style = SymbolKind::from_str(name)
++            .ok()
++            .as_ref()
++            .and_then(SymbolKind::style_name)
++            .and_then(|style_name| theme.try_get(style_name))
++            .unwrap_or_else(Style::default);
++
++        // fall back to the LSP color when the icon has no themed color
++        if let Some(icon) = icons.kind().get(name) {
+             let style = theme
+                 .try_get_exact(&stack_format!("icons.kind.{name}"))
+-                .unwrap_or_else(|| icon.style());
++                .or(icon.style)
++                .unwrap_or(symbol_style);
+ 
+             menu::Row::new([
+                 // NOTE:
+@@ -119,12 +126,21 @@ fn format(&self, theme: &Self::Data) -> menu::Row<'_> {
+                 // correctly, we pad the right still, leaving a space between the icon
+                 // and the contents; Some terminals render an icon a different width
+                 // depending on if there is a space or not.
+-                menu::Cell::from(Span::styled(icon.with_padding(0, 1).to_string(), style)),
+-                menu::Cell::from(label),
+-                menu::Cell::from(kind),
++                menu::Cell::from(icon.with_padding(0, 1).to_string()).style(style),
++                menu::Cell::from(label).style(label_style),
++                menu::Cell::from(kind.content).style(style),
++            ])
++        } else if let Some(color) = color {
++            menu::Row::new([
++                menu::Cell::from(icons.kind().color().to_string()).style(color.into()),
++                menu::Cell::from(label).style(label_style),
++                menu::Cell::from(kind).style(symbol_style),
+             ])
+         } else {
+-            menu::Row::new([menu::Cell::from(label), menu::Cell::from(kind)])
++            menu::Row::new([
++                menu::Cell::from(label).style(label_style),
++                menu::Cell::from(kind).style(symbol_style),
++            ])
+         }
+     }
+ }
+diff --git a/helix-term/src/ui/editor.rs b/helix-term/src/ui/editor.rs
+index d4b1ba2a0..79c81f8bc 100644
+--- a/helix-term/src/ui/editor.rs
++++ b/helix-term/src/ui/editor.rs
+@@ -897,38 +897,11 @@ fn draw_element(
+                     draw_separator = true;
+                 }
+ 
+-                let symbol_style = match symbol.kind {
+-                    SymbolKind::MODULE
+-                    | SymbolKind::NAMESPACE
+-                    | SymbolKind::PACKAGE => editor.theme.get("namespace"),
+-
+-                    SymbolKind::OBJECT // impl Block
+-                    | SymbolKind::STRUCT
+-                    | SymbolKind::INTERFACE
+-                    | SymbolKind::CLASS => editor.theme.get("type"),
+-
+-                    SymbolKind::METHOD => editor.theme.get("function.method"),
+-                    SymbolKind::FUNCTION => editor.theme.get("function"),
+-
+-                    SymbolKind::ENUM => editor.theme.get("type.enum"),
+-                    SymbolKind::ENUM_MEMBER => editor.theme.get("type.enum.variant"),
+-
+-                   SymbolKind::FIELD | SymbolKind::PROPERTY => {
+-                        editor.theme.get("variable.other.member")
+-                    }
+-
+-                    SymbolKind::VARIABLE => editor.theme.get("variable"),
+-                    SymbolKind::CONSTANT => editor.theme.get("constant"),
+-                    SymbolKind::CONSTRUCTOR => editor.theme.get("constructor"),
+-                    SymbolKind::STRING => editor.theme.get("string"),
+-                    SymbolKind::NUMBER => editor.theme.get("constant.numeric"),
+-                    SymbolKind::BOOLEAN => editor.theme.get("constant.builtin.boolean"),
+-                    SymbolKind::ARRAY => editor.theme.get("punctuation.bracket"),
+-                    SymbolKind::KEY => editor.theme.get("label"),
+-                    SymbolKind::NULL => editor.theme.get("constant.builtin"),
+-                    SymbolKind::TYPE_PARAMETER => editor.theme.get("type.parameter"),
+-                    _ => style,
+-                };
++                let symbol_style = symbol
++                    .kind
++                    .style_name()
++                    .and_then(|n| theme.try_get(n))
++                    .unwrap_or(style);
+ 
+                 let kind = symbol.kind.as_str();
+                 let icon_style = editor
+diff --git a/helix-term/src/ui/menu.rs b/helix-term/src/ui/menu.rs
+index 99e8ee449..755e1e094 100644
+--- a/helix-term/src/ui/menu.rs
++++ b/helix-term/src/ui/menu.rs
+@@ -356,11 +356,21 @@ fn render(&mut self, area: Rect, surface: &mut Surface, cx: &mut Context) {
+ 
+         let win_height = area.height as usize;
+ 
+-        let rows = options
+-            .iter()
+-            .map(|option| option.format(&self.editor_data));
++        // Take the cell modifiers and fg color, but preserve the existing bg color
++        let rows = options.iter().map(|option| {
++            let mut row = option.format(&self.editor_data);
++            for cell in &mut row.cells {
++                let mut style = style;
++                if let Some(fg) = cell.style.fg {
++                    style = style.fg(fg);
++                };
++                style = style.add_modifier(cell.style.add_modifier);
++                cell.set_style(style);
++            }
++            row
++        });
++
+         let table = Table::new(rows)
+-            .style(style)
+             .highlight_style(selected)
+             .column_spacing(1)
+             .widths(&self.widths);
+diff --git a/helix-tui/src/widgets/table.rs b/helix-tui/src/widgets/table.rs
+index 5f4667b7c..f8b733e2f 100644
+--- a/helix-tui/src/widgets/table.rs
++++ b/helix-tui/src/widgets/table.rs
+@@ -31,7 +31,7 @@
+ #[derive(Debug, Clone, PartialEq, Eq, Default)]
+ pub struct Cell<'a> {
+     pub content: Text<'a>,
+-    style: Style,
++    pub style: Style,
+ }
+ 
+ impl Cell<'_> {
+diff --git a/helix-view/src/icons.rs b/helix-view/src/icons.rs
+index dab4dc4ea..9e8356420 100644
+--- a/helix-view/src/icons.rs
++++ b/helix-view/src/icons.rs
+@@ -134,7 +134,7 @@ macro_rules! icons {
+ #[derive(Debug, Default, Eq, Clone, Copy)]
+ pub struct Icon {
+     glyph: Option<StackString>,
+-    style: Option<Style>,
++    pub style: Option<Style>,
+     padding: Option<Padding>,
+     is_user_overridden: bool,
+ }
+-- 
+2.55.0
+
+
+From 30aaf03c3edbac0772c95ba8fbafda54cee8eae7 Mon Sep 17 00:00:00 2001
+From: "Alexis (Poliorcetics) Bourget" <ab_contribs@poliorcetiq.eu>
+Date: Mon, 20 Jul 2026 16:12:49 +0200
+Subject: [PATCH 15/15] fix: lsp: correctly clear workspace diagnostics on
+ LSP(s) stop or restart
+
+Before this commit, using `:lsp-stop` or `:lsp-start` would not clear
+existing workspace diagnostics.
+
+Also stop language servers when the last document using them is closed.
+
+Co-authored-by: Awiteb <a@4rs.nl>
+Signed-off-by: Awiteb <a@4rs.nl>
+---
+ helix-core/src/command_line.rs   |   5 ++
+ helix-lsp/src/lib.rs             |  37 +++++++----
+ helix-term/src/commands/typed.rs | 101 ++++++++++++++++++-------------
+ helix-view/src/handlers/lsp.rs   |  23 +++++++
+ 4 files changed, 114 insertions(+), 52 deletions(-)
+
+diff --git a/helix-core/src/command_line.rs b/helix-core/src/command_line.rs
+index db7a71d79..3a4d009d2 100644
+--- a/helix-core/src/command_line.rs
++++ b/helix-core/src/command_line.rs
+@@ -923,6 +923,11 @@ pub fn is_empty(&self) -> bool {
+         self.positionals.is_empty()
+     }
+ 
++    /// Positionals arguments, in the order they were given.
++    pub fn positionals(&self) -> &[Cow<'a, str>] {
++        &self.positionals
++    }
++
+     /// Gets the first positional argument, if one exists.
+     pub fn first(&'a self) -> Option<&'a str> {
+         self.positionals.first().map(AsRef::as_ref)
+diff --git a/helix-lsp/src/lib.rs b/helix-lsp/src/lib.rs
+index a247efad1..17f0ea476 100644
+--- a/helix-lsp/src/lib.rs
++++ b/helix-lsp/src/lib.rs
+@@ -688,17 +688,32 @@ pub fn restart_server(
+         Some(Ok(client))
+     }
+ 
+-    pub fn stop(&mut self, name: &str) {
+-        if let Some(clients) = self.inner_by_name.get_mut(name) {
+-            // Drain the clients vec so that the entry in `inner_by_name` remains
+-            // empty. We use the empty vec as a "tombstone" to mean that a server
+-            // has been manually stopped with :lsp-stop and shouldn't be automatically
+-            // restarted by `get`. :lsp-restart can be used to restart the server
+-            // manually.
+-            for client in clients.drain(..) {
+-                self.file_event_handler.remove_client(client.id());
+-                self.inner.remove(client.id());
+-                client.force_shutdown();
++    pub fn stop(&mut self, server_id: LanguageServerId, automatic_stop: bool) {
++        let Self {
++            inner,
++            inner_by_name,
++            syn_loader: _,
++            incoming: _,
++            file_event_handler,
++        } = self;
++
++        if let Some(client) = inner.remove(server_id) {
++            // Drain the clients vec so that the entry in `inner_by_name` remains empty. We use
++            // the empty vec as a "tombstone" to mean that a server has been manually stopped with
++            // :lsp-stop and shouldn't be automatically restarted by `get`. :lsp-restart can be used
++            // to restart the server manually.
++            if let Some(clients_by_name) = inner_by_name.get_mut(client.name()) {
++                for subclient in clients_by_name.drain(..) {
++                    inner.remove(subclient.id());
++                    file_event_handler.remove_client(subclient.id());
++                    subclient.force_shutdown();
++                }
++            }
++            // In case of automatic stop we remove the vec entirely because if the user closed the
++            // last Markdown file and then open a Markdown file again 5 minutes later, they likely
++            // expect the LS to start up again: they did not ask for manual stop after all
++            if automatic_stop {
++                inner_by_name.remove(client.name());
+             }
+         }
+     }
+diff --git a/helix-term/src/commands/typed.rs b/helix-term/src/commands/typed.rs
+index 487dc535b..66844328b 100644
+--- a/helix-term/src/commands/typed.rs
++++ b/helix-term/src/commands/typed.rs
+@@ -1790,38 +1790,35 @@ fn lsp_restart(cx: &mut compositor::Context, args: Args, event: PromptEvent) ->
+         return Ok(());
+     }
+ 
+-    let editor_config = cx.editor.config.load();
+     let doc = doc!(cx.editor);
+-    let config = doc
++    let doc_config = doc
+         .language_config()
+         .context("LSP not defined for the current document")?;
+ 
+-    let language_servers: Vec<_> = config
++    // Collect the names of all language servers configured for this document.
++    let document_lsp_names: Vec<_> = doc_config
+         .language_servers
+         .iter()
+         .map(|ls| ls.name.as_str())
+         .collect();
+-    let language_servers = if args.is_empty() {
+-        language_servers
+-    } else {
+-        let (valid, invalid): (Vec<_>, Vec<_>) = args
+-            .iter()
+-            .map(|arg| arg.as_ref())
+-            .partition(|name| language_servers.contains(name));
+-        if !invalid.is_empty() {
+-            let s = if invalid.len() == 1 { "" } else { "s" };
+-            bail!("Unknown language server{s}: {}", invalid.join(", "));
+-        }
+-        valid
+-    };
++
++    let selected = lsp_helper_filter_from_args(&args, document_lsp_names.as_slice())?;
++    // Stop initialized LSPs if any, to ensure their diagnostics are correctly cleared
++    lsp_stop_inner(cx.editor, selected.as_slice());
++
++    let editor_config = cx.editor.config.load();
++    let doc = doc!(cx.editor);
++    let config = doc
++        .language_config()
++        .context("LSP not defined for the current document")?;
+ 
+     let mut errors = Vec::new();
+-    for server in language_servers.iter() {
++    for name in selected.iter() {
+         match cx
+             .editor
+             .language_servers
+             .restart_server(
+-                server,
++                name,
+                 config,
+                 doc.path(),
+                 &editor_config.workspace_lsp_roots,
+@@ -1832,7 +1829,7 @@ fn lsp_restart(cx: &mut compositor::Context, args: Args, event: PromptEvent) ->
+             // Ignore the executable-not-found error unless the server was explicitly requested
+             // in the arguments.
+             Err(helix_lsp::Error::ExecutableNotFound(_))
+-                if !args.iter().any(|arg| arg == server) => {}
++                if !args.iter().any(|arg| **arg == **name) => {}
+             Err(err) => errors.push(err.to_string()),
+             _ => (),
+         }
+@@ -1845,9 +1842,9 @@ fn lsp_restart(cx: &mut compositor::Context, args: Args, event: PromptEvent) ->
+         .filter_map(|doc| match doc.language_config() {
+             Some(config)
+                 if config.language_servers.iter().any(|ls| {
+-                    language_servers
++                    selected
+                         .iter()
+-                        .any(|restarted_ls| restarted_ls == &ls.name)
++                        .any(|restarted_ls| **restarted_ls == *ls.name)
+                 }) =>
+             {
+                 Some(doc.id())
+@@ -1874,31 +1871,29 @@ fn lsp_stop(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> any
+     if event != PromptEvent::Validate {
+         return Ok(());
+     }
++
+     let doc = doc!(cx.editor);
+ 
+-    let language_servers: Vec<_> = doc
++    // List of initialized LSPs (running once)
++    let initialized_lsps: Vec<_> = doc.language_servers().map(|ls| ls.name()).collect();
++
++    let selected = lsp_helper_filter_from_args(&args, &initialized_lsps)?;
++    lsp_stop_inner(cx.editor, &selected);
++    Ok(())
++}
++
++fn lsp_stop_inner(editor: &mut Editor, selected: &[Box<str>]) {
++    let doc = doc!(editor);
++    let selected_lsps: Vec<_> = doc
+         .language_servers()
+-        .map(|ls| ls.name().to_string())
++        .filter_map(|lsp| Some((lsp.id(), selected.iter().find(|s| ***s == *lsp.name())?)))
+         .collect();
+-    let language_servers = if args.is_empty() {
+-        language_servers
+-    } else {
+-        let (valid, invalid): (Vec<_>, Vec<_>) = args
+-            .iter()
+-            .map(|arg| arg.to_string())
+-            .partition(|name| language_servers.contains(name));
+-        if !invalid.is_empty() {
+-            let s = if invalid.len() == 1 { "" } else { "s" };
+-            bail!("Unknown language server{s}: {}", invalid.join(", "));
+-        }
+-        valid
+-    };
+ 
+-    for ls_name in &language_servers {
+-        cx.editor.language_servers.stop(ls_name);
++    for (lsp_id, lsp_name) in selected_lsps {
++        editor.remove_language_server_by_id(lsp_id, false);
+ 
+-        for doc in cx.editor.documents_mut() {
+-            if let Some(client) = doc.remove_language_server_by_name(ls_name) {
++        for doc in editor.documents_mut() {
++            if let Some(client) = doc.remove_language_server_by_name(lsp_name) {
+                 doc.clear_diagnostics_for_language_server(client.id());
+                 doc.reset_all_inlay_hints();
+                 doc.inlay_hints_oudated = true;
+@@ -1906,8 +1901,32 @@ fn lsp_stop(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> any
+             }
+         }
+     }
++}
+ 
+-    Ok(())
++fn lsp_helper_filter_from_args(
++    args: &Args,
++    available_lsps: &[&str],
++) -> anyhow::Result<Vec<Box<str>>> {
++    let mut selected = Vec::new();
++    let mut invalid = Vec::new();
++    if args.positionals().is_empty() {
++        selected = available_lsps.iter().map(|s| Box::from(*s)).collect();
++    } else {
++        for arg in args.positionals() {
++            let item = available_lsps.iter().find(|name| arg == *name);
++            match item {
++                Some(name) => selected.push(Box::from(*name)),
++                None => invalid.push(arg.as_ref()),
++            }
++        }
++    }
++
++    if !invalid.is_empty() {
++        let s = if invalid.len() == 1 { "" } else { "s" };
++        bail!("Unknown language server{s}: {}", invalid.join(", "));
++    }
++
++    Ok(selected)
+ }
+ 
+ fn tree_sitter_scopes(
+diff --git a/helix-view/src/handlers/lsp.rs b/helix-view/src/handlers/lsp.rs
+index 919cbac8c..d6adc26fc 100644
+--- a/helix-view/src/handlers/lsp.rs
++++ b/helix-view/src/handlers/lsp.rs
+@@ -413,6 +413,18 @@ pub fn execute_lsp_command(&mut self, command: lsp::Command, server_id: Language
+             }
+         });
+     }
++
++    pub fn remove_language_server_by_id(
++        &mut self,
++        server_id: LanguageServerId,
++        automatic_stop: bool,
++    ) {
++        self.language_servers.stop(server_id, automatic_stop);
++        self.diagnostics.retain(|_, diags| {
++            diags.retain(|(_, provider)| provider.language_server_id() != Some(server_id));
++            !diags.is_empty()
++        });
++    }
+ }
+ 
+ pub fn register_hooks(_handlers: &Handlers) {
+@@ -456,6 +468,17 @@ pub fn register_hooks(_handlers: &Handlers) {
+         // Send textDocument/didClose notifications.
+         for language_server in event.doc.language_servers() {
+             language_server.text_document_did_close(event.doc.identifier());
++
++            // Stop the language server if this was the last open document using it.
++            if event
++                .editor
++                .documents()
++                .all(|d| !d.supports_language_server(language_server.id()))
++            {
++                event
++                    .editor
++                    .remove_language_server_by_id(language_server.id(), true);
++            };
+         }
+ 
+         Ok(())
 -- 
 2.55.0
 
