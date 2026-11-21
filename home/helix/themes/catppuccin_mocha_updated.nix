@@ -96,7 +96,7 @@
       # Deep black main editor background
       base = "#000000";
       # Background for popups, menus and help
-      menus-bg = "#011745";
+      menus-bg = "#010c22";
       # Block color used for rendered indentation/whitespace
       whitespace-bg = "#303030";
       # Background for search/match highlights

@@ -131,6 +131,7 @@ in
       mouse = false;
       rainbow-brackets = true;
       true-color = true;
+      popup-border = "all";
     };
 
     editor.breadcrumb = {

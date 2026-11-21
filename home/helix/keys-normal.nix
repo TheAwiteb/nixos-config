@@ -25,7 +25,7 @@
 
     # Custom commands
     space.space = {
-      label = "Custom commands";
+      label = "External tools";
       y = {
         label = "Open Yazi file manager";
         command = [
