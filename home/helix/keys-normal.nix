@@ -22,6 +22,27 @@
     C-u = [ "scroll_up" ];
     # Scroll view down
     C-d = [ "scroll_down" ];
+    # search selection
+    "A-/" = [ "search_selection" ];
+
+    "]".G = {
+      label = "Goto next git conflict";
+      command = [
+        ":set-register / <<<<<<< HEAD"
+        "search_next"
+        ":clear-register /"
+        ":echo done, if any"
+      ];
+    };
+    "[".G = {
+      label = "Goto previous git conflict";
+      command = [
+        ":set-register / <<<<<<< HEAD"
+        "search_prev"
+        ":clear-register /"
+        ":echo done, if any"
+      ];
+    };
 
     # Custom commands
     space.space = {
